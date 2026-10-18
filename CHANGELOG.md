@@ -1,5 +1,9 @@
 # Changes
 
+## Unreleased
+
+- Map proportionally resized worker results back onto inpaint/outpaint canvases, preserving source pixels outside the edit mask.
+
 ## 1.2.1 — 2026-10-18
 
 - Block duplicate paid submissions after paused polling, ambiguous responses and reloads; recover known/expired jobs without redispatch.

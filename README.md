@@ -92,6 +92,8 @@ of original encoded-file identity or perfect generative edit alignment. Imported
 masks use white for edit, black for preserve and gray for blending. Use matching
 source dimensions. Crop mode letterboxes the context into the chosen legal output
 dimensions and maps the generated crop back afterward.
+Workers that compress oversized responses by proportionally resizing images are
+supported: the compositor maps the returned dimensions back onto the edit canvas.
 
 ### Outpainting
 

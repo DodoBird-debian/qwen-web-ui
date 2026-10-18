@@ -154,175 +154,177 @@ test("references insert at caret and follow their image when reordered", async (
     "base64 characters",
   );
 });
-test("inpaint sends only frozen fields and creates a local composite preserving source outside mask", async ({
-  page,
-}) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
-  const original = await png(page, "#204060"),
-    generated = await png(page, "#cc5500");
-  const submissions: any[] = [];
-  await page.route("**/api/runpod/**", async (route) => {
-    if (route.request().url().endsWith("/run")) {
-      submissions.push(JSON.parse(route.request().postData()!));
-      await route.fulfill({ json: { id: "inpaint-1", status: "IN_QUEUE" } });
-    } else
-      await route.fulfill({
-        json: {
-          id: "inpaint-1",
-          status: "COMPLETED",
-          output: {
-            images: [
-              {
-                image_base64: generated,
-                mime_type: "image/png",
-                width: 512,
-                height: 512,
-                seed: 42,
-              },
-            ],
+for (const compressed of [false, true]) {
+  test(`inpaint preserves source outside mask${compressed ? " with a compressed worker result" : ""}`, async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto("/");
+    const original = await png(page, "#204060"),
+      generated = await png(page, "#cc5500", compressed ? 256 : 512, compressed ? 256 : 512);
+    const submissions: any[] = [];
+    await page.route("**/api/runpod/**", async (route) => {
+      if (route.request().url().endsWith("/run")) {
+        submissions.push(JSON.parse(route.request().postData()!));
+        await route.fulfill({ json: { id: "inpaint-1", status: "IN_QUEUE" } });
+      } else
+        await route.fulfill({
+          json: {
+            id: "inpaint-1",
+            status: "COMPLETED",
+            output: {
+              images: [
+                {
+                  image_base64: generated,
+                  mime_type: "image/png",
+                  width: compressed ? 256 : 512,
+                  height: compressed ? 256 : 512,
+                  seed: 42,
+                },
+              ],
+            },
           },
-        },
-      });
-  });
-  await connect(page);
-  await page.locator("[data-mode=inpaint]").click();
-  await page.locator("#source-upload").setInputFiles({
-    name: "source.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(original, "base64"),
-  });
-  await page.locator("#width").fill("512");
-  await page.locator("#height").fill("512");
-  await page.locator("#crop-mask").uncheck();
-  await page.locator("#prompt").fill("Make a small orange patch");
-  const mask = page.locator(".mask-layer");
-  await expect(mask).toBeVisible();
-  await mask.scrollIntoViewIfNeeded();
-  await expect
-    .poll(async () => (await mask.boundingBox())?.width || 0)
-    .toBeGreaterThan(100);
-  const box = await mask.boundingBox();
-  if (!box) throw new Error("No canvas");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.up();
-  await expect(page.locator("#generate")).toBeEnabled();
-  await page.locator("#generate").click();
-  await expect(page.locator(".result-heading strong")).toHaveText(
-    "Local composite",
-  );
-  await expect(page.locator(".guide-card")).toHaveCount(2);
-  expect(submissions).toHaveLength(1);
-  expect(submissions[0].input.images).toHaveLength(2);
-  expect(submissions[0].input.mask).toBeUndefined();
-  expect(submissions[0].input.strength).toBeUndefined();
-  expect(submissions[0].input.prompt).toContain("<image2>");
-  const pixels = await page
-    .locator(".composite-variant .result-preview img")
-    .evaluate(async (element: HTMLImageElement) => {
-      await element.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = element.naturalWidth;
-      canvas.height = element.naturalHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(element, 0, 0);
-      return {
-        corner: Array.from(ctx.getImageData(0, 0, 1, 1).data),
-        center: Array.from(ctx.getImageData(256, 256, 1, 1).data),
-      };
+        });
     });
-  expect(pixels.corner).toEqual([32, 64, 96, 255]);
-  expect(pixels.center).toEqual([204, 85, 0, 255]);
-  await page.locator("#view-editor").click();
-  await expect(mask).toBeVisible();
-  expect(errors).toEqual([]);
-});
-test("crop inpaint maps the edited region back into the source without changing outside pixels", async ({
-  page,
-}) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
-  const original = await png(page, "#204060"),
-    generated = await png(page, "#cc5500");
-  const submissions: any[] = [];
-  await page.route("**/api/runpod/**", async (route) => {
-    if (route.request().url().endsWith("/run")) {
-      submissions.push(JSON.parse(route.request().postData()!));
-      await route.fulfill({ json: { id: "inpaint-1", status: "IN_QUEUE" } });
-    } else
-      await route.fulfill({
-        json: {
-          id: "inpaint-1",
-          status: "COMPLETED",
-          output: {
-            images: [
-              {
-                image_base64: generated,
-                mime_type: "image/png",
-                width: 512,
-                height: 512,
-                seed: 42,
-              },
-            ],
+    await connect(page);
+    await page.locator("[data-mode=inpaint]").click();
+    await page.locator("#source-upload").setInputFiles({
+      name: "source.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(original, "base64"),
+    });
+    await page.locator("#width").fill("512");
+    await page.locator("#height").fill("512");
+    await page.locator("#crop-mask").uncheck();
+    await page.locator("#prompt").fill("Make a small orange patch");
+    const mask = page.locator(".mask-layer");
+    await expect(mask).toBeVisible();
+    await mask.scrollIntoViewIfNeeded();
+    await expect
+      .poll(async () => (await mask.boundingBox())?.width || 0)
+      .toBeGreaterThan(100);
+    const box = await mask.boundingBox();
+    if (!box) throw new Error("No canvas");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.locator("#generate")).toBeEnabled();
+    await page.locator("#generate").click();
+    await expect(page.locator(".result-heading strong")).toHaveText(
+      "Local composite",
+    );
+    await expect(page.locator(".guide-card")).toHaveCount(2);
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].input.images).toHaveLength(2);
+    expect(submissions[0].input.mask).toBeUndefined();
+    expect(submissions[0].input.strength).toBeUndefined();
+    expect(submissions[0].input.prompt).toContain("<image2>");
+    const pixels = await page
+      .locator(".composite-variant .result-preview img")
+      .evaluate(async (element: HTMLImageElement) => {
+        await element.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = element.naturalWidth;
+        canvas.height = element.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(element, 0, 0);
+        return {
+          corner: Array.from(ctx.getImageData(0, 0, 1, 1).data),
+          center: Array.from(ctx.getImageData(256, 256, 1, 1).data),
+        };
+      });
+    expect(pixels.corner).toEqual([32, 64, 96, 255]);
+    expect(pixels.center).toEqual([204, 85, 0, 255]);
+    await page.locator("#view-editor").click();
+    await expect(mask).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+  test(`crop inpaint maps back without changing outside pixels${compressed ? " with a compressed worker result" : ""}`, async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto("/");
+    const original = await png(page, "#204060"),
+      generated = await png(page, "#cc5500", compressed ? 256 : 512, compressed ? 256 : 512);
+    const submissions: any[] = [];
+    await page.route("**/api/runpod/**", async (route) => {
+      if (route.request().url().endsWith("/run")) {
+        submissions.push(JSON.parse(route.request().postData()!));
+        await route.fulfill({ json: { id: "inpaint-1", status: "IN_QUEUE" } });
+      } else
+        await route.fulfill({
+          json: {
+            id: "inpaint-1",
+            status: "COMPLETED",
+            output: {
+              images: [
+                {
+                  image_base64: generated,
+                  mime_type: "image/png",
+                  width: compressed ? 256 : 512,
+                  height: compressed ? 256 : 512,
+                  seed: 42,
+                },
+              ],
+            },
           },
-        },
-      });
-  });
-  await connect(page);
-  await page.locator("[data-mode=inpaint]").click();
-  await page.locator("#source-upload").setInputFiles({
-    name: "source.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(original, "base64"),
-  });
-  await page.locator("#width").fill("512");
-  await page.locator("#height").fill("512");
-  await page.locator("#crop-mask").check();
-  await page.locator("#prompt").fill("Make a small orange patch");
-  const mask = page.locator(".mask-layer");
-  await expect(mask).toBeVisible();
-  await mask.scrollIntoViewIfNeeded();
-  await expect
-    .poll(async () => (await mask.boundingBox())?.width || 0)
-    .toBeGreaterThan(100);
-  const box = await mask.boundingBox();
-  if (!box) throw new Error("No canvas");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.up();
-  await expect(page.locator("#generate")).toBeEnabled();
-  await page.locator("#generate").click();
-  await expect(page.locator(".result-heading strong")).toHaveText(
-    "Local composite",
-  );
-  expect(submissions).toHaveLength(1);
-  expect(submissions[0].input.images).toHaveLength(2);
-  expect(submissions[0].input.mask).toBeUndefined();
-  expect(submissions[0].input.strength).toBeUndefined();
-  expect(submissions[0].input.prompt).toContain("<image2>");
-  const pixels = await page
-    .locator(".composite-variant .result-preview img")
-    .evaluate(async (element: HTMLImageElement) => {
-      await element.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = element.naturalWidth;
-      canvas.height = element.naturalHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(element, 0, 0);
-      return {
-        corner: Array.from(ctx.getImageData(0, 0, 1, 1).data),
-        center: Array.from(ctx.getImageData(256, 256, 1, 1).data),
-      };
+        });
     });
-  expect(pixels.corner).toEqual([32, 64, 96, 255]);
-  expect(pixels.center).toEqual([204, 85, 0, 255]);
-  await page.locator("#view-editor").click();
-  await expect(mask).toBeVisible();
-  expect(errors).toEqual([]);
-});
+    await connect(page);
+    await page.locator("[data-mode=inpaint]").click();
+    await page.locator("#source-upload").setInputFiles({
+      name: "source.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(original, "base64"),
+    });
+    await page.locator("#width").fill("512");
+    await page.locator("#height").fill("512");
+    await page.locator("#crop-mask").check();
+    await page.locator("#prompt").fill("Make a small orange patch");
+    const mask = page.locator(".mask-layer");
+    await expect(mask).toBeVisible();
+    await mask.scrollIntoViewIfNeeded();
+    await expect
+      .poll(async () => (await mask.boundingBox())?.width || 0)
+      .toBeGreaterThan(100);
+    const box = await mask.boundingBox();
+    if (!box) throw new Error("No canvas");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.locator("#generate")).toBeEnabled();
+    await page.locator("#generate").click();
+    await expect(page.locator(".result-heading strong")).toHaveText(
+      "Local composite",
+    );
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].input.images).toHaveLength(2);
+    expect(submissions[0].input.mask).toBeUndefined();
+    expect(submissions[0].input.strength).toBeUndefined();
+    expect(submissions[0].input.prompt).toContain("<image2>");
+    const pixels = await page
+      .locator(".composite-variant .result-preview img")
+      .evaluate(async (element: HTMLImageElement) => {
+        await element.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = element.naturalWidth;
+        canvas.height = element.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(element, 0, 0);
+        return {
+          corner: Array.from(ctx.getImageData(0, 0, 1, 1).data),
+          center: Array.from(ctx.getImageData(256, 256, 1, 1).data),
+        };
+      });
+    expect(pixels.corner).toEqual([32, 64, 96, 255]);
+    expect(pixels.center).toEqual([204, 85, 0, 255]);
+    await page.locator("#view-editor").click();
+    await expect(mask).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
 test("completed worker errors are shown and a lost submission is not retried", async ({
   page,
 }) => {

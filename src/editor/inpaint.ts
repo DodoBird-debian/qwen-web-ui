@@ -144,12 +144,21 @@ export async function composite(
       bitmaps.push(await createImageBitmap(blob));
     const [source, mask, generated] = bitmaps,
       t = snapshot.transform;
-    if (generated.width !== t.width || generated.height !== t.height)
+    // The worker may downscale to fit its inline response limit. Accept a
+    // proportional reduction (including integer rounding), then map the crop
+    // in the returned image's coordinates. Keep unrelated shape errors visible.
+    if (
+      generated.width > t.width || generated.height > t.height ||
+      Math.abs(generated.width * t.height - generated.height * t.width) >
+        Math.max(t.width, t.height)
+    )
       throw new Error(
         "Worker result dimensions do not match the inpaint request.",
       );
     if (mask.width !== source.width || mask.height !== source.height)
       throw new Error("Composite mask dimensions differ from the source.");
+    const resultScaleX = generated.width / t.width,
+      resultScaleY = generated.height / t.height;
     const original = canvas(source.width, source.height),
       edited = canvas(source.width, 128),
       maskCanvas = canvas(source.width, 128);
@@ -166,10 +175,10 @@ export async function composite(
       editCtx.clearRect(t.crop.x, t.crop.y, t.crop.width, t.crop.height);
       editCtx.drawImage(
         generated,
-        t.padX,
-        t.padY,
-        t.crop.width * t.scale,
-        t.crop.height * t.scale,
+        t.padX * resultScaleX,
+        t.padY * resultScaleY,
+        t.crop.width * t.scale * resultScaleX,
+        t.crop.height * t.scale * resultScaleY,
         t.crop.x,
         t.crop.y,
         t.crop.width,
