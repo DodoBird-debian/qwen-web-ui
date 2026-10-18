@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Match worker VRAM tensors and phase weight placement, expose offload beside capacity/safety, and show the peak breakdown.
+- Move batch planning above settings, add image-count shortcuts and request previews/progress, and verify ten images dispatch as 4+4+2.
 - Keep image history across tools and new runs, with small previews, optional reload persistence, and no automatic eviction of image jobs.
 - Accept partial batches and JPEG fallback, preserve returned seeds/images, display delivery warnings, and stop remaining automation without retrying omissions.
 - Map proportionally resized worker results back onto inpaint/outpaint canvases, preserving source pixels outside the edit mask.

@@ -11,6 +11,7 @@ interface GPUConfigContext {
 export function syncGPUInputs(profile: Profile) {
   $<HTMLInputElement>("#gpu-inline-capacity").value = String(profile.gpuGiB);
   $<HTMLInputElement>("#safety-adder").value = String(profile.safetyGiB);
+  $<HTMLSelectElement>("#gpu-inline-offload").value = profile.offload;
   $("#safety-output").textContent = `+${profile.safetyGiB} GiB`;
 }
 export function bindGPUConfig(context: GPUConfigContext) {
@@ -43,6 +44,10 @@ export function bindGPUConfig(context: GPUConfigContext) {
     const safetyGiB = Number($<HTMLInputElement>("#safety-adder").value);
     if (Number.isInteger(safetyGiB) && safetyGiB >= 0 && safetyGiB <= 10)
       commit({ ...context.profile(), safetyGiB });
+  });
+  $("#gpu-inline-offload").addEventListener("change", () => {
+    const profile = { ...context.profile(), offload: $<HTMLSelectElement>("#gpu-inline-offload").value };
+    if (validProfile(profile)) commit(profile);
   });
   $("#profile-open").addEventListener("click", () => {
     const profile = context.profile();

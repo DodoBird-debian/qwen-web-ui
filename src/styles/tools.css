@@ -284,3 +284,15 @@
 .image-history > p { margin: 7px 0 0; line-height: 1.5; }
 .delivery-notice { grid-column: 1 / -1; overflow-wrap: anywhere; margin: 0; }
 @media (max-width: 600px) { .image-history { margin: 0 12px 14px; } }
+
+.batch-planner { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.batch-planner h3 { margin: 0 0 10px; font-size: 12px; }
+.image-presets { display: flex; gap: 6px; margin-bottom: 12px; }
+.count-preset { flex: 1; border: 1px solid #4b593f; border-radius: 6px; padding: 8px; color: var(--accent); background: #252e20; }
+.count-preset:hover, .count-preset:focus-visible { background: #3a482e; }
+.batch-plan { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; max-height: 140px; overflow: auto; }
+.planned-request, .request-progress { border: 1px solid #424b3a; border-radius: 5px; padding: 7px 9px; font-size: 10px; background: #20271d; }
+.planned-request[aria-pressed=true], .request-progress.running { border-color: var(--accent); color: var(--accent); }
+.request-progress.completed { color: #b8d99b; background: #26361f; }
+.request-progress.partial, .request-progress.failed { color: #f3c082; border-color: #a77a41; }
+#batch-details { overflow-wrap: anywhere; line-height: 1.6; }

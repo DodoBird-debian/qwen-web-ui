@@ -18,7 +18,7 @@ export class SettingsPanel {
       )
       .join("")}</select></label>
     <div class="field-row"><label class="field">Width<input id="width" type="number" value="1024" min="256" max="4096" step="32"></label><span class="times">×</span><label class="field">Height<input id="height" type="number" value="1024" min="256" max="4096" step="32"></label></div>
-    <div class="field-row"><label class="field">Steps<input id="steps" type="number" value="40" min="1" max="100"></label><label class="field">Images<select id="image-count"><option>1</option><option>2</option><option>3</option><option>4</option></select></label></div>
+    <div class="field-row"><label class="field">Steps<input id="steps" type="number" value="40" min="1" max="100"></label><label class="field">Images / request<select id="image-count"><option>1</option><option>2</option><option>3</option><option>4</option></select><small>Maximum 4 per API request</small></label></div>
     <label class="field">Seed<span class="input-action"><input id="seed" type="text" inputmode="numeric" value="-1" autocomplete="off"><button id="random-seed" type="button" title="Use random seed" aria-label="Use random seed">⤨</button></span><small>-1 chooses a random seed</small></label>
     <div class="field-row"><label class="field">Format<select id="format"><option value="png">PNG</option><option value="webp">WebP</option><option value="jpeg">JPEG</option></select></label><label class="field">Quality<input id="quality" type="number" min="1" max="100" value="95"></label></div>
     <label class="switch-field"><span>Transparent background<small>Prompt the model for RGBA output</small></span><input id="transparent" type="checkbox" role="switch"></label>
@@ -101,6 +101,11 @@ export class SettingsPanel {
   }
   reset() {
     this.write(DEFAULTS);
+    this.change();
+  }
+  setImageCount(count: number) {
+    if (!Number.isInteger(count) || count < 1 || count > 4) return;
+    this.set("image-count", count);
     this.change();
   }
   separateJobs(): boolean {

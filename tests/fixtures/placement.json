@@ -1,0 +1,61 @@
+{
+  "source": "worker runtime._phase_tensor_budgets at ce565d5",
+  "cases": [
+    {
+      "offload": "none",
+      "capacity_bytes": 85899345920,
+      "phase_budgets": {
+        "conditioning": 53459368248,
+        "denoising": 53459368248,
+        "decoding": 53459368248
+      },
+      "placement_bytes": {
+        "conditioning": 32439977672,
+        "denoising": 32439977672,
+        "decoding": 32439977672
+      }
+    },
+    {
+      "offload": "text_encoder",
+      "capacity_bytes": 85899345920,
+      "phase_budgets": {
+        "conditioning": 53459368248,
+        "denoising": 70993615640,
+        "decoding": 70993615640
+      },
+      "placement_bytes": {
+        "conditioning": 32439977672,
+        "denoising": 14905730280,
+        "decoding": 14905730280
+      }
+    },
+    {
+      "offload": "model",
+      "capacity_bytes": 85899345920,
+      "phase_budgets": {
+        "conditioning": 67689617720,
+        "denoising": 70993615640,
+        "decoding": 85223865112
+      },
+      "placement_bytes": {
+        "conditioning": 18209728200,
+        "denoising": 14905730280,
+        "decoding": 675480808
+      }
+    },
+    {
+      "offload": "sequential",
+      "capacity_bytes": 85899345920,
+      "phase_budgets": {
+        "conditioning": 67689617720,
+        "denoising": 70993615640,
+        "decoding": 85223865112
+      },
+      "placement_bytes": {
+        "conditioning": 18209728200,
+        "denoising": 14905730280,
+        "decoding": 675480808
+      }
+    }
+  ]
+}

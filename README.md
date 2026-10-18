@@ -109,6 +109,13 @@ instruction compliance depend on the model. A standalone sketch editor is deferr
 
 ### Repeated runs and comparisons
 
+**Images & requests** is at the top of settings. Choose the 10-image shortcut for
+three sequential requests of **4 + 4 + 2**; the worker API never receives more
+than four images in one request. The 1/4/10/20 shortcuts, editable total, and
+1–4 images/request selector build the same frozen plan. Click a planned request
+to inspect its seeds and byte count without sending it. Current-run chips show
+each request's state and jump to its results.
+
 Select **Consecutive-seed series**, choose total images and 1/4 images per request,
 and start. Twenty images starting at seed 100 use five four-image requests starting
 at 100, 104, 108, 112, 116, or twenty single-image requests from 100 through 119.
@@ -175,9 +182,15 @@ Estimates cannot guarantee admission or prevent OOM. Tokenizer-dependent
 positional checks remain authoritative on the worker. Custom weights/deployment
 versions can invalidate model and output-bound assumptions.
 
-The local model-size projection includes transformer and VAE weights and excludes
-text-encoder weights in every offload mode. Request tensors, including conditioning,
-still use the worker formulas. The worker's own admission checks remain authoritative.
+The projection uses the same phase placement as `runtime._phase_tensor_budgets`.
+`none` keeps all components resident; `text_encoder` includes all weights during
+conditioning and DiT/VAE afterward; `model`/`sequential` reserve encoder+VAE during
+conditioning, DiT+VAE during denoising, and VAE during decode. Encoder weights are
+therefore counted only where the worker budgets them. Worker tensor/placement
+fixtures verify parity. Extra safety is the only added allowance. The visible
+offload selector must match the deployed `CPU_OFFLOAD`; live free VRAM and custom
+checkpoint sizes cannot be inferred by the browser. The panel separates model
+weights, worker tensors and extra safety, and includes the worker's log values.
 
 The VRAM panel has editable GPU capacity plus a **0–10 GiB safety slider in
 1 GiB steps**. Configure GPU offers common capacity presets, custom capacity and

@@ -85,6 +85,12 @@ export function renderEstimates(
     node("span", "", `GiB / ${profile.gpuGiB}`),
   );
   container.append(total);
+  const actualPhases = actualRoute === "parallel" ? current.memory.parallel : current.memory.sequential;
+  const peakPhase = actualPhases.reduce((a, b) => b.bytes > a.bytes ? b : a);
+  const phaseIndex = actualPhases.indexOf(peakPhase);
+  const phaseTensors = actualRoute === "parallel" ? current.memory.batchTensors : current.memory.tensors;
+  container.append(node("p", "subtle vram-breakdown",
+    `${peakPhase.name}: ${gibLabel(phaseTensors[peakPhase.name])} worker tensors + ${gibLabel(current.memory.placement[phaseIndex])} weights + ${gibLabel(current.memory.safetyBytes)} extra safety.`));
   const actual = node(
     "div",
     "route-label actual-route",
@@ -155,10 +161,11 @@ export function renderEstimates(
   comparison.append(rows);
   details.append(comparison);
   const phases = node("table", "batch-comparison phase-comparison");
-  phases.innerHTML = `<caption>Model (excluding text encoder) + request tensors + flat safety</caption><thead><tr><th>Phase</th><th>Sequential</th><th>${previewCount}× parallel</th></tr></thead>`;
+  phases.innerHTML = `<caption>Worker phase placement + request tensors + extra safety</caption><thead><tr><th>Phase</th><th>Sequential</th><th>${previewCount}× parallel</th></tr></thead>`;
   const phaseRows = node("tbody");
   memory.sequential.forEach((phase, index) => {
     const row = node("tr");
+    row.title = `${gibLabel(memory.placement[index])} model weights + ${gibLabel(memory.tensors[phase.name])} request tensors + ${gibLabel(memory.safetyBytes)} extra safety`;
     row.append(
       node("th", "", phase.name),
       node("td", "mono", gibLabel(phase.bytes + memory.safetyBytes)),
@@ -172,6 +179,17 @@ export function renderEstimates(
   });
   phases.append(phaseRows);
   details.append(phases);
+  const tensorTable = node("table", "batch-comparison worker-tensors");
+  tensorTable.innerHTML = "<caption>Worker log values · request tensors before weights and extra safety</caption><thead><tr><th>Phase</th><th>Sequential</th><th>Batch</th></tr></thead>";
+  const tensorRows = node("tbody");
+  for (const phase of memory.sequential) {
+    const row = node("tr");
+    row.append(node("th", "", phase.name), node("td", "mono", gibLabel(memory.tensors[phase.name])),
+               node("td", "mono", gibLabel(memory.batchTensors[phase.name])));
+    tensorRows.append(row);
+  }
+  tensorTable.append(tensorRows);
+  details.append(tensorTable);
   details.append(
     node(
       "p",

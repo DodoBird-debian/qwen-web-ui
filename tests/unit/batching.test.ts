@@ -67,11 +67,11 @@ describe("GPU profiles and buffered batch projections", () => {
       projections[0].memory.peak * 4,
     );
   });
-  it("admits a four-image preview on 24 GiB without text-encoder weights", () => {
+  it("admits a four-image preview on 24 GiB with worker model offload", () => {
     const batch = projectBatch(
       input,
       [],
-      { ...defaultProfile, gpuGiB: 24 },
+      { ...defaultProfile, gpuGiB: 24, offload: "model" },
       4,
     );
     expect(batch.route).toBe("parallel");

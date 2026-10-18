@@ -102,7 +102,7 @@ let runRenderKey = "";
 let displayedJob = "";
 let viewedJob: SavedJob | undefined;
 const imageHistory = new ImageHistory($("#image-history"), viewHistoryJob);
-const runControls = new RunControls($("#run-controls"), scheduleRefresh);
+const runControls = new RunControls($("#run-controls"), scheduleRefresh, count => settings.setImageCount(count));
 bindRegions($("#region-panel"), editor);
 const submissionGuard = createTabSubmissionGuard();
 const submissionNotice = node("div", "notice submission-notice");
@@ -314,6 +314,27 @@ function renderRun(identity: number) {
     `${runner.plan.kind === "grid" ? "Comparison" : "Consecutive seeds"} · base seed ${runner.plan.baseSeed} · ${Math.floor((Date.now() - runner.started) / 1000)}s elapsed. ${runner.state === "stopped" ? "Unsent requests were not submitted." : runner.active ? "Browser must remain open." : ""}`;
   $<HTMLButtonElement>("#series-stop").disabled = !runner.active;
   $<HTMLButtonElement>("#series-cancel").disabled = !runner.active;
+  const batchProgress = document.createDocumentFragment();
+  runner.plan.requests.forEach((request, index) => {
+    const states = request.cells.map(cell => runner!.cells.get(cell.id)!.status);
+    const state = states.every(status => status === "completed") ? "completed"
+      : states.includes("running") ? "running"
+      : states.includes("omitted") ? "partial"
+      : states.includes("failed") ? "failed"
+      : states.includes("cancelled") ? "cancelled"
+      : states.includes("unknown") ? "unconfirmed" : "pending";
+    const item = button(`${index + 1} · ${request.cells.length} · ${state}`, () => {
+      viewedJob = undefined;
+      runRenderKey = "";
+      workspaceView = "results";
+      renderRun(identity);
+      document.querySelector(`[data-cell-id="${request.cells[0].id}"]`)?.scrollIntoView({ block: "center" });
+    }, `request-progress ${state}`);
+    item.title = `Request ${index + 1}: ${request.cells.length} images · ${state}`;
+    if (state === "running") item.setAttribute("aria-current", "step");
+    batchProgress.append(item);
+  });
+  $("#run-batches").replaceChildren(batchProgress);
   if (viewedJob) return;
   const firstPresentation = !runRenderKey;
   const cells = runner.plan.cells.map((c) => ({
@@ -771,6 +792,7 @@ async function refresh() {
       prompt: raw.prompt.trim() ? raw.prompt : "Preview",
     });
     renderEstimates(preview, actualRefs, profile, settings.separateJobs());
+    runControls.describe(preview, raw.negative_prompt || "", settings.separateJobs());
   } catch {
     $("#memory-estimate").textContent =
       "Complete valid generation settings to estimate memory.";
@@ -801,6 +823,7 @@ async function refresh() {
       runControls.kind === "grid" || raw.true_cfg_scale > 1
         ? compilePrompt(negative.value, referenceBindings())
         : "",
+      settings.separateJobs(),
     );
     if (runPlan) {
       const summary = estimatePlan(runPlan, actualRefs, profile);
@@ -813,7 +836,7 @@ async function refresh() {
         ),
       );
       $("#run-summary").textContent +=
-        ` Maximum predicted buffered peak ${(summary.worst.peak / 1024 ** 3).toFixed(2)} GiB. ${summary.routes.join("; ")}.`;
+        ` Maximum predicted buffered peak ${(summary.worst.peak / 1024 ** 3).toFixed(2)} GiB. Within each request: ${summary.routes.join("; ")}.`;
     }
     $("#validation").textContent = "";
     $<HTMLButtonElement>("#generate").disabled =

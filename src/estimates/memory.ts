@@ -4,6 +4,7 @@ export { defaultProfile, type Profile, type Offload } from "./profile";
 
 export const GiB = 1024 ** 3;
 export const WEIGHTS = {
+  text_encoder: 17534247392,
   transformer: 14230249472,
   vae: 675480808,
 };
@@ -61,13 +62,14 @@ export function estimate(
     denoising: par,
     decoding: par + pixels * input.num_images,
   };
-  // The local model-size projection excludes text-encoder weights in every
-  // offload mode. Keep the worker's request-tensor formulas above unchanged.
+  // Mirror runtime._phase_tensor_budgets, including weights staged for each
+  // phase. In text_encoder mode the DiT/VAE remain resident while the encoder
+  // is on GPU for conditioning. Model/sequential mode stage whole components.
   const resident = WEIGHTS.transformer + WEIGHTS.vae;
-  const placement =
-    profile.offload === "none" || profile.offload === "text_encoder"
-      ? [resident, resident, resident]
-      : [WEIGHTS.vae, resident, WEIGHTS.vae];
+  const all = resident + WEIGHTS.text_encoder;
+  const placement = profile.offload === "none" ? [all, all, all]
+    : profile.offload === "text_encoder" ? [all, resident, resident]
+    : [WEIGHTS.text_encoder + WEIGHTS.vae, resident, WEIGHTS.vae];
   const phases = Object.keys(tensors) as (keyof typeof tensors)[];
   const sequential = phases.map((name, index) => ({
     name,
@@ -96,6 +98,7 @@ export function estimate(
     parallelKv: kv * input.num_images,
     tensors,
     batchTensors,
+    placement,
     sequential,
     parallel,
     peak,

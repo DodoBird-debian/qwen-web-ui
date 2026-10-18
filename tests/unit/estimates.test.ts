@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../fixtures/memory.json";
+import placementFixture from "../fixtures/placement.json";
 import {
   DEFAULTS,
   SOURCE_COMMIT,
@@ -46,18 +47,14 @@ describe("frozen worker estimator parity", () => {
       textBound(effectivePrompt(input), 0),
     );
   });
-  it.each([
-    ["none", [14905730280, 14905730280, 14905730280]],
-    ["text_encoder", [14905730280, 14905730280, 14905730280]],
-    ["model", [675480808, 14905730280, 675480808]],
-    ["sequential", [675480808, 14905730280, 675480808]],
-  ] as const)(
-    "excludes text-encoder weights from every %s phase and projected peak",
-    (offload, placement) => {
+  it.each(placementFixture.cases)(
+    "matches the worker's phase weight budgeting for $offload",
+    ({offload, placement_bytes}) => {
+      const placement = Object.values(placement_bytes);
       const result = estimate(
         { ...DEFAULTS, prompt: "A vase", num_images: 4 },
         [],
-        { ...defaultProfile, offload, safetyGiB: 0 },
+        { ...defaultProfile, offload: offload as typeof defaultProfile.offload, safetyGiB: 0 },
       );
       for (const [index, phase] of result.sequential.entries()) {
         expect(phase.bytes - result.tensors[phase.name]).toBe(placement[index]);
@@ -65,9 +62,7 @@ describe("frozen worker estimator parity", () => {
           result.parallel[index].bytes - result.batchTensors[phase.name],
         ).toBe(placement[index]);
       }
-      // A small request fits a 24 GiB GPU once encoder weights are excluded.
-      expect(result.peak).toBeLessThan(24 * GiB);
-      expect(result.parallelPeak).toBeLessThan(24 * GiB);
+      expect(result.placement).toEqual(placement);
     },
   );
   it("keeps unknown compression uncertain and does not reject PNG from an upper bound", () => {
