@@ -14,6 +14,7 @@ export interface CellResult {
     | "running"
     | "completed"
     | "failed"
+    | "omitted"
     | "unknown"
     | "cancelled";
   job?: SavedJob;
@@ -87,6 +88,8 @@ export class SeriesRunner {
         status:
           job.status === "COMPLETED" && result
             ? "completed"
+            : job.status === "COMPLETED"
+              ? "omitted"
             : job.status === "CANCELLED"
               ? "cancelled"
               : "failed",
@@ -133,20 +136,29 @@ export class SeriesRunner {
         this.known(job);
         if (
           job.status !== "COMPLETED" ||
-          job.results?.length !== request.cells.length
+          !job.results?.length || job.results.length > request.cells.length
         )
           throw new Error(
             job.error ||
               `Job ${job.status}; expected ${request.cells.length} images.`,
           );
-        request.cells.forEach((cell, i) => {
-          const result = job.results![i];
-          if (result.seed !== cell.input.seed)
+        const returned = new Map(job.results!.map((result) => [result.seed, result]));
+        if (returned.size !== job.results!.length)
+          throw new Error("Worker returned duplicate seeds.");
+        for (const result of job.results!)
+          if (!request.cells.some((cell) => cell.input.seed === result.seed))
             throw new Error(
-              `Worker returned seed ${result.seed}; expected ${cell.input.seed}.`,
+              `Worker returned unexpected seed ${result.seed}; expected ${request.cells.map((cell) => cell.input.seed).join(", ")}.`,
             );
-          this.cells.set(cell.id, { status: "completed", job, result });
+        request.cells.forEach((cell) => {
+          const result = returned.get(cell.input.seed);
+          this.cells.set(cell.id, { status: result ? "completed" : "omitted", job, result,
+            error: result ? undefined : "Not returned to fit the response size limit. This image was not retried." });
         });
+        if (job.results!.length < request.cells.length) {
+          this.stopRequested = true;
+          this.error = (job.warning || `Returned ${job.results!.length} of ${request.cells.length} images.`) + " Remaining requests were not submitted.";
+        }
       } catch (e) {
         this.error = e instanceof Error ? e.message : String(e);
         const known = this.currentJob as SavedJob | undefined;

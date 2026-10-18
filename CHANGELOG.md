@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep image history across tools and new runs, with small previews, optional reload persistence, and no automatic eviction of image jobs.
+- Accept partial batches and JPEG fallback, preserve returned seeds/images, display delivery warnings, and stop remaining automation without retrying omissions.
 - Map proportionally resized worker results back onto inpaint/outpaint canvases, preserving source pixels outside the edit mask.
 
 ## 1.2.1 — 2026-10-18

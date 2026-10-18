@@ -10,6 +10,7 @@ interface HistoryContext {
   resume: (record: SavedJob) => Promise<void>;
   reuse: (record: SavedJob) => Promise<void>;
   view: (record: SavedJob) => void;
+  removed: (id: string) => void;
 }
 
 export function bindHistory(context: HistoryContext) {
@@ -84,6 +85,7 @@ export function bindHistory(context: HistoryContext) {
             "Delete locally",
             async () => {
               await remove("jobs", record.id);
+              context.removed(record.id);
               item.remove();
             },
             "text-button",

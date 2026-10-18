@@ -1,5 +1,6 @@
 import { button, download, node, toast } from "../lib/dom";
 import { json } from "../api/json";
+import { nextSeed } from "../api/contract";
 import type { ResultImage, SavedJob } from "../api/jobs";
 import type { InspectItem } from "../inspection/viewer";
 export interface ResultActions {
@@ -27,15 +28,25 @@ export class ResultsPanel {
   private exportVariant = "raw";
   constructor(private root: HTMLElement) {}
   show(job: SavedJob, actions: ResultActions) {
+    let cells: CollectionCell[] = (job.results || []).map((result, i) => ({
+      id: result.id || `${job.id}:${i}`, label: `Image ${i + 1}`, status: "completed", job, result,
+    }));
+    for (let i = cells.length; i < job.input.num_images; i++)
+      cells.push({ id: `${job.id}:omitted-${i}`, label: `Not returned ${i + 1}`,
+                   status: "omitted", job, error: "This image was not returned. It was not automatically retried." });
+    if (job.input.prompt && /^\d+$/.test(job.input.seed) &&
+        Number.isInteger(job.input.num_images) && job.input.num_images >= 1 && job.input.num_images <= 4) {
+      const seeds = Array.from({ length: job.input.num_images }, (_, i) => nextSeed(job.input.seed, i));
+      const received = new Map(cells.filter((cell) => cell.result).map((cell) => [cell.result!.seed, cell]));
+      if ([...received.keys()].every((seed) => seeds.includes(seed)))
+        cells = seeds.map((seed, i) => received.has(seed)
+          ? { ...received.get(seed)!, label: `Image ${i + 1}` }
+          : { id: `${job.id}:omitted-${i}`, label: `Image ${i + 1} · Seed ${seed}`,
+              status: "omitted", job, error: "This image was not returned. It was not automatically retried." });
+    }
     this.showCollection(
       job.id,
-      (job.results || []).map((result, i) => ({
-        id: result.id || `${job.id}:${i}`,
-        label: `Image ${i + 1}`,
-        status: "completed",
-        job,
-        result,
-      })),
+      cells,
       actions,
     );
   }
@@ -169,6 +180,11 @@ export class ResultsPanel {
       }),
     );
     content.append(toolbar);
+    for (const warning of new Set(cells.map((cell) => cell.job?.warning).filter(Boolean))) {
+      const notice = node("p", "notice delivery-notice", warning);
+      notice.setAttribute("role", "status");
+      content.append(notice);
+    }
     for (const c of cells) {
       const key = [
         c.status,

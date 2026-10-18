@@ -44,6 +44,8 @@ export async function trimHistory(limit: number) {
   for (const item of await session.summaries("jobs"))
     summary.set(item.id, item);
   const records = [...summary.values()].sort((a, b) => b.created - a.created);
+  // Successful image jobs and worker errors (which may contain raw results)
+  // stay until explicit deletion. Only empty terminal failures are bounded.
   const completed = records.filter((j) =>
     [
       "COMPLETED",
@@ -54,7 +56,9 @@ export async function trimHistory(limit: number) {
       "EXPIRED",
     ].includes(j.status || ""),
   );
-  for (const record of completed.slice(limit)) await remove("jobs", record.id);
+  for (const record of completed.slice(limit))
+    if (!["COMPLETED", "WORKER_ERROR"].includes(record.status || ""))
+      await remove("jobs", record.id);
 }
 export function saveProfile(endpoint: string, profile: unknown) {
   profiles.set(endpoint, profile);

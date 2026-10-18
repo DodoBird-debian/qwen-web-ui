@@ -95,7 +95,7 @@ export async function summaries(
 }
 export async function trimHistory(limit: number): Promise<void> {
   const jobs = await summaries("jobs");
-  // Never evict an active job just because a completed result was saved.
+  // Never silently evict successful images, partial raw results, or active jobs.
   const completed = jobs.filter((job) =>
     [
       "COMPLETED",
@@ -106,7 +106,9 @@ export async function trimHistory(limit: number): Promise<void> {
       "EXPIRED",
     ].includes(job.status || ""),
   );
-  for (const job of completed.slice(limit)) await remove("jobs", job.id);
+  for (const job of completed.slice(limit))
+    if (!["COMPLETED", "WORKER_ERROR"].includes(job.status || ""))
+      await remove("jobs", job.id);
 }
 export function saveProfile(endpoint: string, profile: unknown): void {
   localStorage.setItem(`qwen-profile:${endpoint}`, JSON.stringify(profile));

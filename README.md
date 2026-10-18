@@ -142,6 +142,18 @@ its remaining requests unsent. No per-step percentage is inferred from elapsed t
 This is finite repetition, not a general reorderable queue. Reload/closing ends local
 dispatch; remote jobs already submitted can continue. Keep the browser open.
 
+Image history stays visible across Generate, Image edit, Inpaint and Outpaint.
+Its recent thumbnails open saved generations without changing the job currently
+being polled or cancelled. **All jobs** opens older history; **Current generation**
+returns to the current run. Completed image jobs and partial raw results are kept
+until you delete them. Switching menus and starting another run do not remove them.
+Small previews decode one at a time; full-resolution files remain available.
+
+Workers may return a smaller batch to fit their response limit. Every received
+image is retained, missing images are labelled, and warnings explain JPEG fallback
+or transparency flattened on white. Series/grid results map by seed; a partial batch
+stops remaining requests without automatically regenerating omitted images.
+
 Results for the active run remain accessible even beyond the ordinary history limit.
 They stay as compressed Blobs; decoded bitmaps load on demand. Large runs still need
 browser RAM. ZIP export accepts up to 100 files / 100 MB; export smaller selections
@@ -286,8 +298,9 @@ is no new clear-state workflow or server database. A small non-secret pending-jo
 marker in tab session storage survives reload for submission safety; it contains
 only endpoint/job identity and time, and is removed after resolution.
 
-History defaults to 12 completed jobs, configurable in `config.json`; active jobs are
-not evicted, and the current series/grid retains its own complete result collection.
+`historyLimit` (default 12) bounds older empty terminal failures. Successful image
+jobs, partial raw results, and active jobs are not automatically evicted. The recent
+thumbnail strip shows 12 generations; older images remain under **All jobs**.
 Clearing site data removes persisted history/projects; reloading removes unsaved session data. Download important images,
 export requests and masks, and keep source files separately. Storage-full errors
 leave results available for immediate download. Keys are excluded from storage,

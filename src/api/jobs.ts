@@ -25,6 +25,7 @@ export interface SavedJob {
   results?: ResultImage[];
   outputMeta?: any;
   error?: string;
+  warning?: string;
   inpaint?: InpaintSnapshot;
   delayTime?: number;
   executionTime?: number;
@@ -128,12 +129,18 @@ export class JobManager {
           const output = workerOutput(result);
           record.results = [];
           if (
-            output.images.length !== record.input.num_images &&
+            output.images.length > record.input.num_images &&
             record.input.prompt
           )
             throw new Error("Worker returned an unexpected image count.");
           if (output.images.length > 4)
             throw new Error("Worker returned too many images.");
+          const warnings: string[] = [];
+          if (record.input.prompt && output.images.length < record.input.num_images)
+            warnings.push(`Returned ${output.images.length} of ${record.input.num_images} requested images. Missing images were not automatically retried.`);
+          if (Array.isArray(output.delivery?.warnings))
+            warnings.push(...output.delivery.warnings.filter((text: unknown) => typeof text === "string").slice(0, 8));
+          record.warning = warnings.map((text) => text.slice(0, 1000)).join(" ") || undefined;
           for (const image of output.images) {
             if (
               !Number.isInteger(image.width) ||

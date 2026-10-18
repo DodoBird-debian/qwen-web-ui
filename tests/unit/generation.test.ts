@@ -258,3 +258,23 @@ it("keeps seed validation failures visible when the terminal job is shown again"
   expect(runner.state).toBe("failed");
   expect(runner.error).toContain("expected 100");
 });
+
+it("maps partial batches by seed, retains their images and leaves later requests unsent", async () => {
+  const plan = planSeries(input, 8, 4);
+  const execute = vi.fn(async (request) => {
+    const job = completed(request);
+    job.results = [job.results![1], job.results![3]];
+    job.warning = "Returned 2 of 4 images to fit the response limit.";
+    return job;
+  });
+  const runner = new SeriesRunner(plan, execute, () => {});
+  await runner.start();
+  expect(execute).toHaveBeenCalledTimes(1);
+  expect(runner.state).toBe("stopped");
+  expect(runner.completed).toBe(2);
+  expect(runner.cells.get("image-0")?.status).toBe("omitted");
+  expect(runner.cells.get("image-1")?.result?.seed).toBe("101");
+  expect(runner.cells.get("image-3")?.result?.seed).toBe("103");
+  expect(runner.cells.get("image-4")?.status).toBe("pending");
+  expect(runner.error).toContain("Remaining requests were not submitted");
+});

@@ -22,6 +22,7 @@ import {
   persistenceEnabled,
 } from "./storage/db";
 import { bindHistory } from "./components/history";
+import { ImageHistory } from "./components/image-history";
 import { openReferencePreparation } from "./components/reference-preparation";
 import { bindConnection } from "./components/connection";
 import { normalizeProfile } from "./estimates/profile";
@@ -99,6 +100,8 @@ let runner: SeriesRunner | undefined;
 let runId = 0;
 let runRenderKey = "";
 let displayedJob = "";
+let viewedJob: SavedJob | undefined;
+const imageHistory = new ImageHistory($("#image-history"), viewHistoryJob);
 const runControls = new RunControls($("#run-controls"), scheduleRefresh);
 bindRegions($("#region-panel"), editor);
 const submissionGuard = createTabSubmissionGuard();
@@ -255,6 +258,7 @@ function storageNote() {
   $("#storage-mode-note").textContent = persistenceEnabled()
     ? "Saved in this browser · API keys stay in memory"
     : "Session only · reload ends local pending runs";
+  imageHistory.note();
 }
 $("#persist-browser").addEventListener("change", async () => {
   const enabled = $<HTMLInputElement>("#persist-browser").checked;
@@ -310,6 +314,7 @@ function renderRun(identity: number) {
     `${runner.plan.kind === "grid" ? "Comparison" : "Consecutive seeds"} · base seed ${runner.plan.baseSeed} · ${Math.floor((Date.now() - runner.started) / 1000)}s elapsed. ${runner.state === "stopped" ? "Unsent requests were not submitted." : runner.active ? "Browser must remain open." : ""}`;
   $<HTMLButtonElement>("#series-stop").disabled = !runner.active;
   $<HTMLButtonElement>("#series-cancel").disabled = !runner.active;
+  if (viewedJob) return;
   const firstPresentation = !runRenderKey;
   const cells = runner.plan.cells.map((c) => ({
     id: c.id,
@@ -422,7 +427,7 @@ function renderMode() {
     mode === "inpaint" && $<HTMLInputElement>("#outpaint-enabled").checked,
   );
   const showingResults =
-    (!!runner || !!manager.current?.results?.length) &&
+    (!!viewedJob?.results?.length || !!runner || !!manager.current?.results?.length) &&
     (mode !== "inpaint" || workspaceView === "results");
   $(".workspace").classList.toggle("workspace-showing-results", showingResults);
   $(".workspace").classList.toggle(
@@ -440,7 +445,8 @@ function renderMode() {
   $("#view-results").hidden =
     mode !== "inpaint" ||
     showingResults ||
-    (!runner && !manager.current?.results?.length);
+    (!viewedJob?.results?.length && !runner && !manager.current?.results?.length);
+  $("#history-current").hidden = !viewedJob || (!runner && !manager.current);
   updateGenerateLabel();
 }
 function updateGenerateLabel() {
@@ -471,6 +477,22 @@ $("#view-results").addEventListener("click", () => {
   workspaceView = "results";
   renderMode();
 });
+$("#history-browse").addEventListener("click", () => $("#history-open").click());
+$("#history-current").addEventListener("click", () => {
+  viewedJob = undefined;
+  runRenderKey = "";
+  if (runner) renderRun(runId);
+  else if (manager.current?.results?.length) showJob(manager.current);
+  renderMode();
+});
+function viewHistoryJob(record: SavedJob) {
+  viewedJob = record;
+  results.show(record, resultActions());
+  workspaceView = "results";
+  $("#result-count").textContent = `${record.results?.length || 0} saved results`;
+  renderMode();
+  $("#results").scrollIntoView({ block: "start" });
+}
 
 function renderRefs() {
   const offset = mode === "inpaint" ? 2 : 0;
@@ -940,6 +962,7 @@ $("#generate").addEventListener("click", async () => {
     transport = client(),
     frozenEndpoint = endpoint,
     separate = settings.separateJobs();
+  viewedJob = undefined;
   working = true;
   $<HTMLButtonElement>("#generate").disabled = true;
   try {
@@ -990,6 +1013,7 @@ $("#generate").addEventListener("click", async () => {
   }
 });
 function showJob(record: SavedJob) {
+  imageHistory.remember(record);
   submitting = false;
   if (runner?.active) runner.known(record);
   else runner?.reconcile(record);
@@ -1000,7 +1024,7 @@ function showJob(record: SavedJob) {
     WORKER_ERROR: "Worker returned an error",
   };
   $("#job-status").textContent =
-    `${messages[record.status] || record.status} · ${record.runpodId}${record.error ? ` · ${record.error}` : ""}`;
+    `${messages[record.status] || record.status} · ${record.runpodId}${record.error ? ` · ${record.error}` : ""}${record.warning ? ` · ${record.warning}` : ""}`;
   const terminal =
     TERMINAL.has(record.status) ||
     ["WORKER_ERROR", "EXPIRED"].includes(record.status);
@@ -1010,7 +1034,7 @@ function showJob(record: SavedJob) {
   $<HTMLButtonElement>("#cancel-job").disabled = !!record.cancelRequested && !record.cancelError;
   $<HTMLButtonElement>("#pause-job").disabled = !!record.cancelRequested && !terminal;
   renderActivity();
-  if (record.results?.length) {
+  if (record.results?.length && !viewedJob) {
     const firstPresentation = !runner && displayedJob !== record.id;
     if (!runner) {
       displayedJob = record.id;
@@ -1237,20 +1261,8 @@ bindHistory({
   requireConnection: client,
   resume,
   reuse,
-  view: (record) => {
-    if (
-      working ||
-      (submissionGuard.pending?.id &&
-        submissionGuard.pending.id !== record.runpodId)
-    )
-      throw new Error(
-        "Resolve the current RunPod job before viewing a different job.",
-      );
-    runner = undefined;
-    $("#run-status").hidden = true;
-    manager.current = record;
-    showJob(record);
-  },
+  view: viewHistoryJob,
+  removed: (id) => imageHistory.forget(id),
 });
 
 async function initialize() {
@@ -1294,6 +1306,7 @@ async function initialize() {
     /* Storage optional. */
   }
   manager.setHistoryLimit(historyLimit);
+  try { await imageHistory.restore(); } catch { toast("Saved image history could not be loaded.", true); }
   refreshConnection();
   renderRefs();
   renderMode();

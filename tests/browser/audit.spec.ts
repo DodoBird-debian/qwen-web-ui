@@ -339,7 +339,7 @@ test("upgrades v1 browser history and trims by metadata while retaining active j
         const db = open.result,
           tx = db.transaction("jobs", "readwrite");
         for (const [id, status, created] of [
-          ["old", "COMPLETED", 1],
+          ["old", "FAILED", 1],
           ["active", "IN_PROGRESS", 2],
         ])
           tx.objectStore("jobs").put({
