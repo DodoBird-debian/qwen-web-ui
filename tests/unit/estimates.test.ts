@@ -11,6 +11,7 @@ import {
   defaultProfile,
   roundEven,
   textBound,
+  GiB,
 } from "../../src/estimates/memory";
 import { outputBudget } from "../../src/estimates/output";
 describe("frozen worker estimator parity", () => {
@@ -45,6 +46,30 @@ describe("frozen worker estimator parity", () => {
       textBound(effectivePrompt(input), 0),
     );
   });
+  it.each([
+    ["none", [14905730280, 14905730280, 14905730280]],
+    ["text_encoder", [14905730280, 14905730280, 14905730280]],
+    ["model", [675480808, 14905730280, 675480808]],
+    ["sequential", [675480808, 14905730280, 675480808]],
+  ] as const)(
+    "excludes text-encoder weights from every %s phase and projected peak",
+    (offload, placement) => {
+      const result = estimate(
+        { ...DEFAULTS, prompt: "A vase", num_images: 4 },
+        [],
+        { ...defaultProfile, offload, safetyGiB: 0 },
+      );
+      for (const [index, phase] of result.sequential.entries()) {
+        expect(phase.bytes - result.tensors[phase.name]).toBe(placement[index]);
+        expect(
+          result.parallel[index].bytes - result.batchTensors[phase.name],
+        ).toBe(placement[index]);
+      }
+      // A small request fits a 24 GiB GPU once encoder weights are excluded.
+      expect(result.peak).toBeLessThan(24 * GiB);
+      expect(result.parallelPeak).toBeLessThan(24 * GiB);
+    },
+  );
   it("keeps unknown compression uncertain and does not reject PNG from an upper bound", () => {
     expect(
       outputBudget({ ...DEFAULTS, output_format: "jpeg" }).guaranteedFit,

@@ -5,7 +5,6 @@ export { defaultProfile, type Profile, type Offload } from "./profile";
 export const GiB = 1024 ** 3;
 export const WEIGHTS = {
   transformer: 14230249472,
-  text_encoder: 17534247392,
   vae: 675480808,
 };
 export const ESTIMATOR_SOURCE = SOURCE_COMMIT;
@@ -62,21 +61,13 @@ export function estimate(
     denoising: par,
     decoding: par + pixels * input.num_images,
   };
-  const all = WEIGHTS.transformer + WEIGHTS.text_encoder + WEIGHTS.vae;
+  // The local model-size projection excludes text-encoder weights in every
+  // offload mode. Keep the worker's request-tensor formulas above unchanged.
+  const resident = WEIGHTS.transformer + WEIGHTS.vae;
   const placement =
-    profile.offload === "none"
-      ? [all, all, all]
-      : profile.offload === "text_encoder"
-        ? [
-            all,
-            WEIGHTS.transformer + WEIGHTS.vae,
-            WEIGHTS.transformer + WEIGHTS.vae,
-          ]
-        : [
-            WEIGHTS.text_encoder + WEIGHTS.vae,
-            WEIGHTS.transformer + WEIGHTS.vae,
-            WEIGHTS.vae,
-          ];
+    profile.offload === "none" || profile.offload === "text_encoder"
+      ? [resident, resident, resident]
+      : [WEIGHTS.vae, resident, WEIGHTS.vae];
   const phases = Object.keys(tensors) as (keyof typeof tensors)[];
   const sequential = phases.map((name, index) => ({
     name,

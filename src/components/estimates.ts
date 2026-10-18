@@ -155,7 +155,7 @@ export function renderEstimates(
   comparison.append(rows);
   details.append(comparison);
   const phases = node("table", "batch-comparison phase-comparison");
-  phases.innerHTML = `<caption>Model + request tensors + flat safety</caption><thead><tr><th>Phase</th><th>Sequential</th><th>${previewCount}× parallel</th></tr></thead>`;
+  phases.innerHTML = `<caption>Model (excluding text encoder) + request tensors + flat safety</caption><thead><tr><th>Phase</th><th>Sequential</th><th>${previewCount}× parallel</th></tr></thead>`;
   const phaseRows = node("tbody");
   memory.sequential.forEach((phase, index) => {
     const row = node("tr");

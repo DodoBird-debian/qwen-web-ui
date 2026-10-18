@@ -18,7 +18,7 @@ test("GPU capacity and whole-GiB flat safety update both bars and persist withou
   await expect(page.locator("#safety-adder")).toHaveAttribute("min", "0");
   await expect(page.locator("#safety-adder")).toHaveAttribute("max", "10");
   await expect(page.locator("#safety-adder")).toHaveAttribute("step", "1");
-  await page.locator("#gpu-inline-capacity").fill("40");
+  await page.locator("#gpu-inline-capacity").fill("24");
   await slide(page, "#safety-adder", 10);
   await expect(page.locator(".actual-route")).toHaveAttribute(
     "data-route",

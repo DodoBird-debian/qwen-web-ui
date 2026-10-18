@@ -67,6 +67,16 @@ describe("GPU profiles and buffered batch projections", () => {
       projections[0].memory.peak * 4,
     );
   });
+  it("admits a four-image preview on 24 GiB without text-encoder weights", () => {
+    const batch = projectBatch(
+      input,
+      [],
+      { ...defaultProfile, gpuGiB: 24 },
+      4,
+    );
+    expect(batch.route).toBe("parallel");
+    expect(batch.memory.safeParallelPeak).toBeLessThan(24 * GiB);
+  });
   it("separates parallel, memory fallback, rejection and transport fallback", () => {
     const profile = { ...defaultProfile, gpuGiB: 80, safetyGiB: 0 };
     expect(projectBatch(input, sizes, profile, 4).route).toBe("parallel");

@@ -155,6 +155,10 @@ Estimates cannot guarantee admission or prevent OOM. Tokenizer-dependent
 positional checks remain authoritative on the worker. Custom weights/deployment
 versions can invalidate model and output-bound assumptions.
 
+The local model-size projection includes transformer and VAE weights and excludes
+text-encoder weights in every offload mode. Request tensors, including conditioning,
+still use the worker formulas. The worker's own admission checks remain authoritative.
+
 The VRAM panel has editable GPU capacity plus a **0–10 GiB safety slider in
 1 GiB steps**. Configure GPU offers common capacity presets, custom capacity and
 the deployed offload mode. The safety amount is added once to each projected
