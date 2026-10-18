@@ -150,7 +150,10 @@ export class SeriesRunner {
       } catch (e) {
         this.error = e instanceof Error ? e.message : String(e);
         const known = this.currentJob as SavedJob | undefined;
-        this.state = known ? "failed" : "submission-uncertain";
+        const cancelled = this.cancelRequested && known?.status === "CANCELLED";
+        this.state = cancelled ? "stopped" : known ? "failed" : "submission-uncertain";
+        if (cancelled)
+          this.error = "RunPod confirmed cancellation. Remaining requests were not submitted.";
         this.terminalFailure =
           !!known &&
           [

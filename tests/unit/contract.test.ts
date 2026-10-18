@@ -6,10 +6,21 @@ import {
   MAX_SEED,
   MAX_REQUEST_BYTES,
   nextSeed,
+  workerTrim,
 } from "../../src/api/contract";
 import { json, parseJson } from "../../src/api/json";
 const valid = () => ({ ...DEFAULTS, prompt: "A ceramic fox" });
 describe("frozen request contract", () => {
+  it.each(["\u0085", "\u001c", "\u001d", "\u001e", "\u001f", " \u0085\n\u001c "])(
+    "rejects worker whitespace-only prompts before submission: %j",
+    (prompt) => expect(() => prepare({ prompt })).toThrow("prompt"),
+  );
+  it("uses Python whitespace normalization without discarding BOM", () => {
+    expect(normalizeInput({ prompt: "\u0085\u001c A vase \u001f" }).prompt).toBe("A vase");
+    expect(workerTrim("\ufeffA vase\ufeff")).toBe("\ufeffA vase\ufeff");
+    expect(normalizeInput({ prompt: "\ufeff" }).prompt).toBe("\ufeff");
+    expect(normalizeInput({ prompt: "A vase", true_cfg_scale: 2, negative_prompt: "\u0085" }).negative_prompt).toBe("\u0085");
+  });
   it("normalizes defaults and native aspect sizes", () => {
     expect(normalizeInput({ prompt: " x " }).width).toBe(1024);
     expect(normalizeInput({ prompt: "x", aspect_ratio: "1:1" }).width).toBe(

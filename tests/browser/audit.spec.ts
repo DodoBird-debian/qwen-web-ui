@@ -49,7 +49,6 @@ test("pausing and reloading keep an accepted job guarded until cancellation is c
   await expect(page.locator("#generate")).toBeDisabled();
   await page.locator("#cancel-job").click();
   await expect(page.locator("#toast")).toContainText("Cancellation requested");
-  await page.locator("#resume-job").click();
   await expect(page.locator("#job-status")).toContainText("CANCELLED");
   await expect(page.locator("#generate")).toBeEnabled();
   expect(posts).toBe(1);

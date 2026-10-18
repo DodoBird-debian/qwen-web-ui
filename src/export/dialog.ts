@@ -16,6 +16,21 @@ export function openExport(source: Blob, name: string) {
     actions = node("div", "button-row");
   dialog.append(status, image, actions);
   document.body.append(dialog);
+  let backdropPress = false;
+  const outside = (event: MouseEvent) => {
+    const bounds = dialog.getBoundingClientRect();
+    return (
+      event.clientX < bounds.left || event.clientX > bounds.right ||
+      event.clientY < bounds.top || event.clientY > bounds.bottom
+    );
+  };
+  dialog.addEventListener("pointerdown", (event) => {
+    backdropPress = event.target === dialog && outside(event);
+  });
+  dialog.addEventListener("click", (event) => {
+    if (backdropPress && event.target === dialog && outside(event)) dialog.close();
+    backdropPress = false;
+  });
   const q = <T extends HTMLInputElement | HTMLSelectElement>(key: string) =>
     dialog.querySelector<T>(`[data-${key}]`)!;
   let prepared: EncodedExport | undefined,

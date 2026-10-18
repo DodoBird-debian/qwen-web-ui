@@ -25,6 +25,62 @@
 .workspace-toolbar .subtle {
   font-size: 10px;
 }
+.generation-activity {
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 24px 16px;
+  padding: 16px;
+  border: 1px solid #536840;
+  border-radius: 9px;
+  background: #20291d;
+  box-shadow: 0 8px 24px #0004;
+}
+.generation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.generation-elapsed {
+  font-size: 11px;
+  color: #b2bfa7;
+  font-variant-numeric: tabular-nums;
+}
+.generation-activity p {
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #b2bfa7;
+  overflow-wrap: anywhere;
+}
+.generation-stop {
+  min-height: 44px;
+  border-color: #9a7959;
+  background: #443529;
+}
+.generation-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #5b6c4d;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+}
+.generation-activity.active .generation-spinner {
+  animation: generation-spin 1s linear infinite;
+}
+@keyframes generation-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .generation-activity.active .generation-spinner { animation: none; }
+}
 .canvas-area {
   position: relative;
   min-height: 400px;

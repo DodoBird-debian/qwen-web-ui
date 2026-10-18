@@ -58,6 +58,14 @@ function int(value: unknown, name: string, min: number, max: number): number {
     throw new Error(`${name} must be an integer from ${min} to ${max}.`);
   return value;
 }
+// Match Python str.strip(), including NEL and the four ASCII separators.
+// JavaScript trim() omits those and additionally strips BOM (which Python keeps).
+export function workerTrim(value: string): string {
+  return value.replace(
+    /^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g,
+    "",
+  );
+}
 export function validText(
   value: unknown,
   name: string,
@@ -66,7 +74,7 @@ export function validText(
   if (
     typeof value !== "string" ||
     [...value].length > 20_000 ||
-    (required && !value.trim())
+    (required && !workerTrim(value))
   )
     throw new Error(
       `${name} must ${required ? "contain 1–20,000" : "be a string of at most 20,000"} characters.`,
@@ -104,7 +112,7 @@ export function normalizeInput(raw: unknown): Input {
     throw new Error("Dimensions must be multiples of 32.");
   if (value.width * value.height > 4_500_000)
     throw new Error("Output must total at most 4,500,000 pixels.");
-  value.prompt = validText(value.prompt, "prompt", true).trim();
+  value.prompt = workerTrim(validText(value.prompt, "prompt", true));
   value.num_inference_steps = int(value.num_inference_steps, "steps", 1, 100);
   value.num_images = int(value.num_images, "image count", 1, 4);
   value.quality = int(value.quality, "quality", 1, 100);

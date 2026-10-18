@@ -36,6 +36,40 @@ function job(): SavedJob {
   };
 }
 describe("paid compute protection", () => {
+  it("keeps the guard after cancellation acknowledgement until a status read confirms it", async () => {
+    const fetcher = vi.fn(async () => new Response('{"id":"j","status":"CANCELLED"}'));
+    const client = new RunpodClient("e", "key", fetcher);
+    const m = new JobManager({ update: vi.fn(), storageError: vi.fn() });
+    const saved = job();
+    m.current = saved;
+    m.guard.accepted("e", "j");
+    await m.cancel(client, saved);
+    await m.cancel(client, saved);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(saved.status).toBe("IN_PROGRESS");
+    expect(saved.cancelRequested).toBe(true);
+    expect(m.guard.pending?.id).toBe("j");
+    await m.follow(client, saved);
+    expect(saved.status).toBe("CANCELLED");
+    expect(m.guard.pending).toBeUndefined();
+  });
+  it("keeps an unsuccessful cancellation unresolved and permits an explicit retry", async () => {
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(new TypeError("Lost response"))
+      .mockResolvedValueOnce(new Response('{"id":"j","status":"CANCELLED"}'));
+    const m = new JobManager({ update: vi.fn(), storageError: vi.fn() });
+    const saved = job();
+    const client = new RunpodClient("e", "key", fetcher);
+    m.guard.accepted("e", "j");
+    await expect(m.cancel(client, saved)).rejects.toThrow("Lost response");
+    expect(saved.cancelError).toBe("Lost response");
+    expect(saved.status).toBe("IN_PROGRESS");
+    expect(m.guard.pending?.id).toBe("j");
+    await m.cancel(client, saved);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(saved.cancelError).toBeUndefined();
+    expect(m.guard.pending?.id).toBe("j");
+  });
   it("retains unresolved identity across reload without user content, and rejects overlapping submissions", () => {
     const store = storage(),
       first = new SubmissionGuard(store);

@@ -28,6 +28,8 @@ export interface SavedJob {
   inpaint?: InpaintSnapshot;
   delayTime?: number;
   executionTime?: number;
+  cancelRequested?: boolean;
+  cancelError?: string;
 }
 export interface JobHooks {
   update: (job: SavedJob) => void;
@@ -35,6 +37,7 @@ export interface JobHooks {
 }
 export class JobManager {
   private abort?: AbortController;
+  private cancelling = new Set<string>();
   private hooks: JobHooks;
   private limit: number;
   current?: SavedJob;
@@ -227,5 +230,30 @@ export class JobManager {
   }
   pause() {
     this.abort?.abort(new DOMException("Polling paused", "AbortError"));
+  }
+  async cancel(client: RunpodClient, record: SavedJob): Promise<void> {
+    if (
+      ["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "WORKER_ERROR", "EXPIRED"].includes(record.status) ||
+      this.cancelling.has(record.id) ||
+      (record.cancelRequested && !record.cancelError)
+    ) return;
+    this.cancelling.add(record.id);
+    record.cancelRequested = true;
+    record.cancelError = undefined;
+    this.hooks.update(record);
+    try {
+      const response = await client.cancel(record.runpodId);
+      if (response?.id !== record.runpodId)
+        throw new Error("RunPod did not acknowledge cancellation for this job.");
+      // A POST acknowledgement is not a terminal status check. Keep the guard
+      // and the current status until follow() observes the server's outcome.
+    } catch (error) {
+      record.cancelError = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      this.cancelling.delete(record.id);
+      await this.persist(record);
+      this.hooks.update(record);
+    }
   }
 }

@@ -438,7 +438,6 @@ test("polling pause does not cancel, explicit cancellation and resume use the or
   expect(submits).toBe(1);
   await page.locator("#cancel-job").click();
   await expect(page.locator("#toast")).toContainText("Cancellation requested");
-  await page.locator("#resume-job").click();
   await expect(page.locator("#job-status")).toContainText("CANCELLED");
   expect(submits).toBe(1);
   expect(cancels).toBe(1);

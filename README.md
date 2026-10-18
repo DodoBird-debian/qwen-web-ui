@@ -131,6 +131,12 @@ after polling is paused. A non-secret tab-session marker preserves its identity
 across reload. An uncertain submission must be checked in RunPod before explicitly
 unlocking another request. Manually
 resuming a known job reconciles its result but does not restart remaining automation.
+The generation activity panel shows submission, queue/running status and elapsed
+time. Stop generation requests remote cancellation, resumes paused status checks,
+and waits for a server status response before reporting cancellation. A failed or
+lost cancellation response remains unconfirmed and can be retried explicitly.
+If completion wins the race, the result is retained. Stopping a series also leaves
+its remaining requests unsent. No per-step percentage is inferred from elapsed time.
 This is finite repetition, not a general reorderable queue. Reload/closing ends local
 dispatch; remote jobs already submitted can continue. Keep the browser open.
 
@@ -177,6 +183,8 @@ predictions, not a command to force worker scheduling.
 The CFG selector is a **1–4 slider in 0.1 steps** with a live value. The frozen
 API still supports its original range: valid imported CFG values outside the
 slider's range/step are explicitly preserved until the slider is moved.
+Prompt normalization matches the worker's Python whitespace rules, rejecting
+whitespace-only text before it can submit a job.
 
 [Calculator preview](docs/vram-calculator.png) · [GPU configuration](docs/gpu-config.png).
 

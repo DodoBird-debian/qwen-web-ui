@@ -1,4 +1,5 @@
 import { EditPreparationCache } from "./resources/edit-preparation";
+import { GenerationActivity, finishedJob } from "./components/generation-activity";
 import { bindMobileNavigation } from "./components/mobile-navigation";
 import { createTabSubmissionGuard } from "./generation/submission-guard";
 import { estimatePlan } from "./generation/estimates";
@@ -76,6 +77,7 @@ let endpoint = "",
   serverEndpoint = "",
   apiKey = "",
   working = false,
+  submitting = false,
   version = 0,
   refreshTimer: ReturnType<typeof setTimeout>;
 let ready:
@@ -117,6 +119,50 @@ const manager = new JobManager(
   composite,
   submissionGuard,
 );
+const activity = new GenerationActivity(
+  $("#generation-activity"),
+  stopGeneration,
+  async () => { if (manager.current) await resume(manager.current); },
+);
+
+async function stopGeneration() {
+  if (runner?.active) {
+    const retry = !!manager.current?.cancelError;
+    runner.cancel();
+    if (!retry) return;
+  }
+  if (manager.current) await cancelJob(manager.current);
+}
+
+function renderActivity() {
+  activity.update(submitting, manager.current, manager.polling, !!submissionGuard.pending);
+  updateGenerateLabel();
+}
+
+async function submitJob(...args: Parameters<JobManager["submit"]>) {
+  submitting = true;
+  renderActivity();
+  try {
+    return await manager.submit(...args);
+  } finally {
+    submitting = false;
+    renderActivity();
+  }
+}
+
+async function cancelJob(record: SavedJob, transport?: RunpodClient) {
+  if (!transport && endpoint !== record.endpoint)
+    throw new Error("Connect to the job’s original endpoint before cancelling.");
+  try {
+    await manager.cancel(transport || client(), record);
+    toast("Cancellation requested. Waiting for RunPod status confirmation.");
+  } finally {
+    // A paused/reloaded job must resume status checks after a cancellation,
+    // including when the POST response was lost. Never mark it stopped locally.
+    if (!manager.polling && !working && !finishedJob(record))
+      void resume(record);
+  }
+}
 
 function expansion(): Expansion | undefined {
   if (mode !== "inpaint" || !$<HTMLInputElement>("#outpaint-enabled").checked)
@@ -395,14 +441,21 @@ function renderMode() {
     mode !== "inpaint" ||
     showingResults ||
     (!runner && !manager.current?.results?.length);
-  $("#generate").firstChild!.textContent =
-    runControls.kind === "series"
-      ? "Run series "
-      : runControls.kind === "grid"
-        ? "Run comparison "
-        : mode === "inpaint"
-          ? "Generate edit "
-          : "Generate image ";
+  updateGenerateLabel();
+}
+function updateGenerateLabel() {
+  let label = mode === "inpaint" ? "Generate edit" : "Generate image";
+  if (runControls.kind === "series") label = "Run series";
+  else if (runControls.kind === "grid") label = "Run comparison";
+  if (working) label = "Working…";
+  if (submissionGuard.pending) {
+    label = "Job unresolved";
+    if (manager.polling)
+      label = manager.current?.status === "IN_QUEUE" ? "Queued…" : "Generating…";
+    if (manager.current?.cancelRequested) label = "Stopping…";
+  }
+  if (submitting) label = "Submitting…";
+  $("#generate").firstChild!.textContent = label + " ";
 }
 for (const element of document.querySelectorAll<HTMLElement>("[data-mode]"))
   element.addEventListener("click", () => {
@@ -558,6 +611,7 @@ function rawInput(): Input {
   return input;
 }
 function renderSubmissionGuard() {
+  renderActivity();
   submissionNotice.replaceChildren();
   const pending = submissionGuard.pending;
   submissionNotice.hidden = !pending || working;
@@ -904,21 +958,21 @@ $("#generate").addEventListener("click", async () => {
       runner = new SeriesRunner(
         plan,
         (request) =>
-          manager.submit(
+          submitJob(
             transport,
             frozenEndpoint,
             request.prepared,
             frozen.inpaint,
           ),
         () => renderRun(identity),
-        (job) => transport.cancel(job.runpodId),
+        (job) => cancelJob(job, transport),
       );
       await runner.start();
     } else {
       runner = undefined;
       $("#run-status").hidden = true;
       $("#job-status").textContent = "Submitting to RunPod…";
-      await manager.submit(transport, frozenEndpoint, frozen, frozen.inpaint);
+      await submitJob(transport, frozenEndpoint, frozen, frozen.inpaint);
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError")
@@ -936,6 +990,7 @@ $("#generate").addEventListener("click", async () => {
   }
 });
 function showJob(record: SavedJob) {
+  submitting = false;
   if (runner?.active) runner.known(record);
   else runner?.reconcile(record);
   const messages: Record<string, string> = {
@@ -952,6 +1007,9 @@ function showJob(record: SavedJob) {
   $("#pause-job").hidden = !manager.polling;
   $("#resume-job").hidden = terminal || manager.polling;
   $("#cancel-job").hidden = terminal;
+  $<HTMLButtonElement>("#cancel-job").disabled = !!record.cancelRequested && !record.cancelError;
+  $<HTMLButtonElement>("#pause-job").disabled = !!record.cancelRequested && !terminal;
+  renderActivity();
   if (record.results?.length) {
     const firstPresentation = !runner && displayedJob !== record.id;
     if (!runner) {
@@ -1008,14 +1066,7 @@ async function resume(record: SavedJob) {
 $("#cancel-job").addEventListener("click", async () => {
   if (!manager.current) return;
   try {
-    if (endpoint !== manager.current.endpoint)
-      throw new Error(
-        "Connect to the job’s original endpoint before cancelling.",
-      );
-    const response = await client().cancel(manager.current.runpodId);
-    toast(
-      `Cancellation requested: ${response.status || "accepted"}. Check the job status for confirmation.`,
-    );
+    await stopGeneration();
   } catch (error) {
     toast(String(error), true);
   }

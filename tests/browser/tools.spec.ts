@@ -459,4 +459,9 @@ test("browser export measures bytes, preserves alpha, requires JPEG flattening a
   await expect(
     dialog.getByRole("button", { name: "Download export", exact: true }),
   ).toBeDisabled();
+  // Inside interactions keep the modal open; an actual backdrop click closes it.
+  await dialog.getByRole("heading", { name: "Prepare export" }).click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(dialog).toHaveCount(0);
 });

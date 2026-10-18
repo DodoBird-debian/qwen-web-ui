@@ -19,6 +19,7 @@ export function layout(): string {
 
     <section class="workspace">
       <div class="workspace-toolbar"><div><span class="eyebrow">CREATIVE CANVAS</span><h1 id="workspace-title">Make room for an idea.</h1></div><div class="button-row"><button id="view-editor" class="text-button" hidden>Back to mask</button><button id="view-results" class="text-button" hidden>Results</button><span id="result-count" class="subtle">Qwen-Image 2.1</span><button id="request-preview" class="icon-button" aria-label="Preview API request" title="Preview API request">{ }</button></div></div>
+      <section id="generation-activity" class="generation-activity" aria-label="Generation activity" hidden></section>
       <div id="editor-tools" class="editor-tools" hidden>
         <label class="button" for="source-upload">Load source<input id="source-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
         <div class="segmented"><button data-tool="brush" class="active" title="Brush">Brush</button><button data-tool="erase">Erase</button><button data-tool="rectangle">Rect</button><button data-tool="ellipse">Ellipse</button><button data-tool="pan">Pan</button></div>
