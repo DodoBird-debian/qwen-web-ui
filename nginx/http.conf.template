@@ -1,0 +1,13 @@
+# Included in the http context. Render with the host/container's DNS servers.
+resolver __RESOLVERS__ valid=300s ipv6=off;
+map "$http_x_runpod_api_key:$uri" $qwen_runpod_key {
+    default $http_x_runpod_api_key;
+    # __RUNPOD_AUTH_DEFAULT__
+}
+map "$request_method:$uri" $qwen_route_allowed {
+    default 0;
+    ~^POST:/api/runpod/[A-Za-z0-9_-]+/run$ 1;
+    ~^POST:/api/runpod/[A-Za-z0-9_-]+/cancel/[A-Za-z0-9_-]+$ 1;
+    ~^GET:/api/runpod/[A-Za-z0-9_-]+/status/[A-Za-z0-9_-]+$ 1;
+    ~^GET:/api/runpod/[A-Za-z0-9_-]+/health$ 1;
+}

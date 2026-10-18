@@ -1,0 +1,7 @@
+{
+  "endpointId": "",
+  "gpuGiB": 80,
+  "offload": "text_encoder",
+  "safetyGiB": 3,
+  "historyLimit": 12
+}

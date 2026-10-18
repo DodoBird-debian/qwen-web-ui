@@ -1,0 +1,1169 @@
+{
+  "sourceCommit": "99c28f5d8a7fe0a5fa489ef4d619b1453198fccb",
+  "cases": [
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 512,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 1183318016,
+        "parallel_kv_cache_bytes": 1183318016,
+        "activation_bytes": 698482688,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 5103026176,
+        "parallel_activations_bytes": 698482688,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 5103026176,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 5115609088,
+        "parallel_decoding_bytes": 5115609088
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 512,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 1183318016,
+        "parallel_kv_cache_bytes": 4733272064,
+        "activation_bytes": 698482688,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 5103026176,
+        "parallel_activations_bytes": 2793930752,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 12359041024,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 5115609088,
+        "parallel_decoding_bytes": 12409372672
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 512,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 698482688,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 3919708160,
+        "parallel_activations_bytes": 698482688,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 3919708160,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 3932291072,
+        "parallel_decoding_bytes": 3932291072
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 512,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 698482688,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 3919708160,
+        "parallel_activations_bytes": 2793930752,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 7625768960,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 3932291072,
+        "parallel_decoding_bytes": 7676100608
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 512,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 2234,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 2354577408,
+        "parallel_kv_cache_bytes": 2354577408,
+        "activation_bytes": 1393950720,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 6969753600,
+        "parallel_activations_bytes": 1393950720,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 6969753600,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 6982336512,
+        "parallel_decoding_bytes": 6982336512
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 512,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 2234,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 2354577408,
+        "parallel_kv_cache_bytes": 9418309632,
+        "activation_bytes": 1393950720,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 6969753600,
+        "parallel_activations_bytes": 5575802880,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 19825950720,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 6982336512,
+        "parallel_decoding_bytes": 19876282368
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 512,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 2234,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 1393950720,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 4615176192,
+        "parallel_activations_bytes": 1393950720,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 4615176192,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 4627759104,
+        "parallel_decoding_bytes": 4627759104
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 512,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 2068,
+        "prefix_tokens": 2257,
+        "negative_prefix_tokens": 2234,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 1393950720,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 4615176192,
+        "parallel_activations_bytes": 5575802880,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 10407641088,
+        "conditioning_bytes": 4404543488,
+        "decoding_bytes": 4627759104,
+        "parallel_decoding_bytes": 10457972736
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 1024,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 4438097920,
+        "parallel_kv_cache_bytes": 4438097920,
+        "activation_bytes": 1512177664,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 9171501056,
+        "parallel_activations_bytes": 1512177664,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 9171501056,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 9184083968,
+        "parallel_decoding_bytes": 9184083968
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 1024,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 4438097920,
+        "parallel_kv_cache_bytes": 17752391680,
+        "activation_bytes": 1512177664,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 9171501056,
+        "parallel_activations_bytes": 6048710656,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 28632940544,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 9184083968,
+        "parallel_decoding_bytes": 28683272192
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 1024,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 1512177664,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 4733403136,
+        "parallel_activations_bytes": 1512177664,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 4733403136,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 4745986048,
+        "parallel_decoding_bytes": 4745986048
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 1024,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 1512177664,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 4733403136,
+        "parallel_activations_bytes": 6048710656,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 10880548864,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 4745986048,
+        "parallel_decoding_bytes": 10930880512
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 1024,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 8442,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 8864137216,
+        "parallel_kv_cache_bytes": 8864137216,
+        "activation_bytes": 3021340672,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 15106703360,
+        "parallel_activations_bytes": 3021340672,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 15106703360,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 15119286272,
+        "parallel_decoding_bytes": 15119286272
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 1024,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 8442,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 8864137216,
+        "parallel_kv_cache_bytes": 35456548864,
+        "activation_bytes": 3021340672,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 15106703360,
+        "parallel_activations_bytes": 12085362688,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 52373749760,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 15119286272,
+        "parallel_decoding_bytes": 52424081408
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 1024,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 8442,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 3021340672,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 6242566144,
+        "parallel_activations_bytes": 3021340672,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 6242566144,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 6255149056,
+        "parallel_decoding_bytes": 6255149056
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 1024,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 8276,
+        "prefix_tokens": 8465,
+        "negative_prefix_tokens": 8442,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 3021340672,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 6242566144,
+        "parallel_activations_bytes": 12085362688,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 16917200896,
+        "conditioning_bytes": 7659323392,
+        "decoding_bytes": 6255149056,
+        "parallel_decoding_bytes": 16967532544
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 2048,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 17163616256,
+        "parallel_kv_cache_bytes": 17163616256,
+        "activation_bytes": 4693557248,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 25078398976,
+        "parallel_activations_bytes": 4693557248,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 25078398976,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 25090981888,
+        "parallel_decoding_bytes": 25090981888
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 2048,
+        "use_kv_cache": true
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 17163616256,
+        "parallel_kv_cache_bytes": 68654465024,
+        "activation_bytes": 4693557248,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 25078398976,
+        "parallel_activations_bytes": 18774228992,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 92260532224,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 25090981888,
+        "parallel_decoding_bytes": 92310863872
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 2048,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 4693557248,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 7914782720,
+        "parallel_activations_bytes": 4693557248,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 7914782720,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 7927365632,
+        "parallel_decoding_bytes": 7927365632
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 1,
+        "output_resolution": 2048,
+        "use_kv_cache": false
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 0,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 0,
+        "target_tokens": 3072,
+        "branches": 1,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 4693557248,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 7914782720,
+        "parallel_activations_bytes": 18774228992,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 23606067200,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 7927365632,
+        "parallel_decoding_bytes": 23656398848
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 2048,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 32714,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 34315173888,
+        "parallel_kv_cache_bytes": 34315173888,
+        "activation_bytes": 9384099840,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 46920499200,
+        "parallel_activations_bytes": 9384099840,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 46920499200,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 46933082112,
+        "parallel_decoding_bytes": 46933082112
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 2048,
+        "use_kv_cache": true,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 32714,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 34315173888,
+        "parallel_kv_cache_bytes": 137260695552,
+        "activation_bytes": 9384099840,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 46920499200,
+        "parallel_activations_bytes": 37536399360,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 179628933120,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 46933082112,
+        "parallel_decoding_bytes": 179679264768
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 1,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 2048,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 32714,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 1,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 9384099840,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 12605325312,
+        "parallel_activations_bytes": 9384099840,
+        "parallel_overhead_bytes": 3221225472,
+        "parallel_total_bytes": 12605325312,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 12617908224,
+        "parallel_decoding_bytes": 12617908224
+      }
+    },
+    {
+      "input": {
+        "prompt": "A ceramic vase \u65e5\u672c\u8a9e \ud83c\udfa8",
+        "width": 1024,
+        "height": 768,
+        "num_inference_steps": 40,
+        "seed": "42",
+        "num_images": 4,
+        "images": [],
+        "transparent": false,
+        "output_format": "png",
+        "quality": 95,
+        "true_cfg_scale": 2,
+        "output_resolution": 2048,
+        "use_kv_cache": false,
+        "negative_prompt": "blurry"
+      },
+      "sizes": [
+        {
+          "width": 1234,
+          "height": 567
+        },
+        {
+          "width": 800,
+          "height": 1600
+        }
+      ],
+      "expected": {
+        "text_tokens": 189,
+        "negative_text_tokens": 166,
+        "image_tokens": 32548,
+        "prefix_tokens": 32737,
+        "negative_prefix_tokens": 32714,
+        "target_tokens": 3072,
+        "branches": 2,
+        "batch_size": 4,
+        "kv_cache_bytes": 0,
+        "parallel_kv_cache_bytes": 0,
+        "activation_bytes": 9384099840,
+        "overhead_bytes": 3221225472,
+        "total_bytes": 12605325312,
+        "parallel_activations_bytes": 37536399360,
+        "parallel_overhead_bytes": 4831838208,
+        "parallel_total_bytes": 42368237568,
+        "conditioning_bytes": 20384841728,
+        "decoding_bytes": 12617908224,
+        "parallel_decoding_bytes": 42418569216
+      }
+    }
+  ]
+}

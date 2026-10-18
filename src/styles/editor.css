@@ -1,0 +1,193 @@
+.editor-tools {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0 24px 14px;
+}
+.editor-tools .button {
+  font-size: 10px;
+  padding: 8px;
+}
+.segmented {
+  display: flex;
+  background: #20271d;
+  border: 1px solid #414e35;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.segmented button {
+  border: 0;
+  background: none;
+  padding: 7px;
+  color: #a4b496;
+  font-size: 9px;
+}
+.segmented button.active {
+  background: #4d6136;
+  color: #dcf2c7;
+}
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a9b49e;
+  font-size: 9px;
+}
+.inline-field input[type="range"] {
+  width: 60px;
+}
+.inline-field select {
+  font-size: 9px;
+  padding: 5px;
+  width: 60px;
+}
+.inpaint-options {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;
+  margin: 0 24px 16px;
+  font-size: 9px;
+  color: #a6b499;
+}
+.inpaint-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.inpaint-options input[type="number"] {
+  width: 58px;
+  padding: 5px;
+  font-size: 10px;
+}
+.inpaint-options p {
+  width: 100%;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #849279;
+}
+.badge {
+  font-size: 8px;
+  color: #bed69e;
+  background: #293523;
+  border: 1px solid #455a35;
+  padding: 5px 7px;
+  border-radius: 4px;
+}
+.canvas-viewport {
+  align-self: stretch;
+  overflow: auto;
+  width: 100%;
+  min-height: 420px;
+  max-height: 650px;
+  display: block;
+  padding: 24px;
+}
+.canvas-stage {
+  position: relative;
+  margin: auto;
+}
+.canvas-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.canvas-stage .mask-layer {
+  opacity: 0.45;
+  cursor: crosshair;
+}
+.checkerboard {
+  background-color: #242924;
+  background-image:
+    linear-gradient(45deg, #323832 25%, transparent 25%),
+    linear-gradient(-45deg, #323832 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #323832 75%),
+    linear-gradient(-45deg, transparent 75%, #323832 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0;
+}
+.results-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 18px;
+  padding: 20px;
+  align-self: start;
+}
+.result-card {
+  min-width: 0;
+  border: 1px solid #435038;
+  background: #1d241a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.result-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  max-height: 520px;
+}
+.result-preview img {
+  max-width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  display: block;
+}
+.result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px 6px;
+  font-size: 11px;
+}
+.result-heading .subtle {
+  font-size: 9px;
+}
+.result-seed {
+  padding: 0 12px;
+  font-size: 9px;
+  color: #a2b690;
+  overflow-wrap: anywhere;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+}
+.result-actions .button {
+  font-size: 9px;
+  padding: 7px 9px;
+}
+.comparison-controls {
+  display: flex;
+  gap: 20px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3b4931;
+}
+.result-footer {
+  grid-column: 1/-1;
+  text-align: center;
+}
+.local-badge {
+  white-space: nowrap;
+}
+
+/* Give editing its own space instead of shrinking it between the tool panels. */
+.workspace-editing .canvas-area {
+  flex: 0 0 auto;
+  min-height: 320px;
+}
+.workspace-editing .canvas-viewport {
+  height: clamp(320px, 55dvh, 600px);
+  min-height: 320px;
+  max-height: none;
+}

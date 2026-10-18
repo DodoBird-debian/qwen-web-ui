@@ -1,0 +1,218 @@
+.mobile-navigation {
+  display: none;
+}
+.submission-notice {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  body {
+    padding-bottom: calc(66px + env(safe-area-inset-bottom));
+  }
+  .mobile-navigation {
+    position: fixed;
+    z-index: 20;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+    background: #171b18f5;
+    border-top: 1px solid var(--line);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+  .mobile-navigation button {
+    flex: 1;
+    font-size: 13px;
+  }
+  .workspace,
+  .reference-sidebar,
+  .settings-sidebar {
+    scroll-margin-top: 12px;
+  }
+  .sidebar-head {
+    display: flex;
+  }
+  .sidebar-head .eyebrow {
+    font-size: 10px;
+  }
+  /* Keep text-entry controls at 16px to avoid iOS focus zoom. */
+  input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea,
+  .composer textarea,
+  .region-row textarea,
+  .region-row input:not([type="checkbox"]),
+  .guide-instruction textarea,
+  .inpaint-options input[type="number"],
+  .inline-field select {
+    font-size: 16px;
+  }
+  button,
+  .button,
+  .text-button,
+  .icon-button,
+  .segmented button,
+  .mode,
+  summary,
+  select,
+  input[type="range"],
+  label[for] {
+    min-height: 44px;
+  }
+  .icon-button,
+  .segmented button {
+    min-width: 44px;
+  }
+  button,
+  .button,
+  .text-button,
+  .editor-tools .button,
+  .sidebar-bottom .button,
+  .sidebar-bottom > .text-button,
+  .reference-extra .text-button,
+  .suggestions button,
+  .collection-toolbar .button,
+  .inspection-tools .button {
+    font-size: 12px;
+  }
+  .modes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .mode {
+    gap: 3px;
+    padding: 6px 2px;
+  }
+  .mode span {
+    font-size: 11px;
+  }
+  .reference-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reference-card {
+    padding: 10px;
+  }
+  .reference-info strong {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .reference-extra {
+    flex-wrap: wrap;
+  }
+  .composer-footer {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .composer-footer .generate-button {
+    margin-left: auto;
+    font-size: 14px;
+  }
+  .workspace-toolbar {
+    flex-wrap: wrap;
+  }
+  .workspace-toolbar > .button-row {
+    flex-wrap: wrap;
+  }
+  .canvas-area {
+    flex: 0 0 auto;
+    min-height: 300px;
+  }
+  .canvas-viewport {
+    min-height: 300px;
+    max-height: 65dvh;
+    padding: 12px;
+  }
+  .editor-tools {
+    align-items: center;
+  }
+  .editor-tools .segmented {
+    flex-wrap: wrap;
+  }
+  .inline-field,
+  .inpaint-options,
+  .inpaint-options p {
+    font-size: 12px;
+  }
+  .inline-field select {
+    width: 100px;
+  }
+  .inpaint-options input[type="number"] {
+    width: 76px;
+  }
+  .edit-panels {
+    min-width: 0;
+  }
+  .region-panel,
+  .outpaint-panel {
+    min-width: 0;
+  }
+  .region-row .button-row {
+    flex-wrap: wrap;
+  }
+  .result-actions,
+  .collection-toolbar,
+  .inspection-tools {
+    flex-wrap: wrap;
+  }
+  .result-actions .text-button {
+    min-width: 70px;
+  }
+  .workspace-showing-results .canvas-area {
+    flex: 0 0 auto;
+    min-height: 300px;
+  }
+  .workspace-showing-results .results-grid {
+    max-height: 70dvh;
+  }
+  .settings-sidebar {
+    flex-direction: column;
+  }
+  .toast {
+    bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+  dialog {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px;
+  }
+  .inspector {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 24px);
+  }
+  .inspection-tools select {
+    max-width: 100%;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 601px) and (max-width: 1000px) {
+  input:not([type="checkbox"]):not([type="range"]),
+  select,
+  textarea,
+  .composer textarea {
+    font-size: 16px;
+  }
+  button,
+  .button,
+  .text-button,
+  .icon-button,
+  select {
+    min-height: 44px;
+  }
+  .studio {
+    display: flex;
+    flex-direction: column;
+  }
+  .settings-sidebar {
+    display: flex;
+    flex-direction: column;
+  }
+  .reference-sidebar {
+    border-right: 0;
+  }
+  .modes {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

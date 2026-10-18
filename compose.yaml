@@ -1,0 +1,16 @@
+services:
+  webui:
+    build: .
+    image: qwen-image-studio:1.2.1
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Non-secret endpoint/GPU defaults can be changed without rebuilding:
+    # volumes:
+    #   - ./public/config.json:/opt/qwen-image-studio/current/config.json:ro

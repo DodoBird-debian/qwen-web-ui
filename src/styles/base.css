@@ -1,0 +1,115 @@
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #e9eae7;
+  background: #111315;
+  font-synthesis: none;
+  --bg: #111315;
+  --panel: #17191b;
+  --line: #2a2d2f;
+  --muted: #8f9694;
+  --accent: #c5f16b;
+  --ink: #182015;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a,
+label[for] {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+[hidden] {
+  display: none !important;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+button {
+  color: inherit;
+}
+input,
+select,
+textarea {
+  color: #e5e8e3;
+  background: #202325;
+  border: 1px solid #353a3b;
+  border-radius: 7px;
+  padding: 10px 11px;
+  min-width: 0;
+  width: 100%;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #8ca74f;
+}
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: auto;
+}
+input[type="range"] {
+  accent-color: var(--accent);
+  padding: 0;
+}
+textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+select {
+  color-scheme: dark;
+}
+h1,
+h2,
+p {
+  margin: 0;
+}
+h2 {
+  font-size: 13px;
+  font-weight: 600;
+}
+small,
+.subtle {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.mono {
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+.eyebrow {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1.8px;
+  font-weight: 600;
+}

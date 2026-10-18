@@ -1,0 +1,403 @@
+@media (min-width: 1600px) {
+  .studio {
+    grid-template-columns: 260px minmax(400px, 1fr) 300px;
+  }
+  .workspace-toolbar {
+    padding: 32px 40px 24px;
+  }
+  .canvas-area {
+    margin: 0 34px 24px;
+    min-height: 470px;
+  }
+  .composer {
+    margin: 0 34px;
+  }
+  .reference-sidebar,
+  .settings-sidebar {
+    padding: 28px 24px;
+  }
+  .empty-state h2 {
+    font-size: 35px;
+  }
+}
+@media (max-width: 1150px) {
+  .studio {
+    grid-template-columns: 200px minmax(300px, 1fr) 240px;
+  }
+  .reference-sidebar,
+  .settings-sidebar {
+    padding: 20px 14px;
+  }
+  .workspace-toolbar {
+    padding: 23px 20px 18px;
+  }
+  .workspace-toolbar h1 {
+    font-size: 17px;
+  }
+  .canvas-area {
+    margin: 0 16px 16px;
+  }
+  .composer {
+    margin: 0 16px;
+    padding: 13px;
+  }
+  .prompt-meta > span {
+    display: none;
+  }
+  .local-badge {
+    display: none;
+  }
+  .topbar {
+    padding: 0 20px;
+  }
+  .workspace-toolbar .subtle {
+    display: none;
+  }
+  .generate-button {
+    gap: 16px;
+    padding: 10px 12px;
+  }
+  .field-row {
+    gap: 8px;
+  }
+  .composer-footer {
+    gap: 12px;
+  }
+}
+@media (max-width: 900px) {
+  .studio {
+    grid-template-columns: 180px minmax(300px, 1fr);
+  }
+  .settings-sidebar {
+    grid-column: 1/-1;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    padding: 24px;
+  }
+  .settings-sidebar > .section-heading {
+    grid-column: 1/-1;
+    margin: 0;
+  }
+  .settings-sidebar > #settings {
+    grid-row: 2/5;
+  }
+  .estimate-panel {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .payload-panel {
+    margin: 0;
+  }
+  .sidebar-footnote {
+    grid-column: 1/-1;
+    margin: 0;
+  }
+  .canvas-area {
+    min-height: 370px;
+  }
+  .workspace-toolbar h1 {
+    font-size: 16px;
+  }
+  .reference-sidebar {
+    padding: 20px 12px;
+  }
+  .brand {
+    font-size: 16px;
+  }
+  .brand-light {
+    font-size: 14px;
+  }
+  .modes {
+    margin-bottom: 24px;
+  }
+  .workspace-status {
+    flex-direction: column;
+  }
+  .workspace-status > span {
+    max-width: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .topbar {
+    height: 64px;
+    padding: 0 14px;
+  }
+  .brand {
+    gap: 8px;
+    font-size: 15px;
+  }
+  .brand-light {
+    display: none;
+  }
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    font-size: 23px;
+  }
+  .connection-button {
+    font-size: 10px;
+    padding: 9px;
+  }
+  .studio {
+    display: flex;
+    flex-direction: column;
+  }
+  .reference-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+  }
+  .sidebar-head {
+    display: none;
+  }
+  .modes {
+    flex-direction: row;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .mode {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 6px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  .mode span {
+    flex: initial;
+    font-size: 10px;
+  }
+  .mode kbd {
+    display: none;
+  }
+  .reference-sidebar .section-heading {
+    margin-bottom: 10px;
+  }
+  .upload-zone {
+    min-height: 70px;
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  .upload-zone > span:not(.upload-icon),
+  .upload-zone small {
+    display: none;
+  }
+  .upload-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 17px;
+  }
+  .reference-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+  .reference-sidebar > .subtle {
+    display: none;
+  }
+  .sidebar-bottom {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .sidebar-bottom > .full {
+    width: auto;
+  }
+  .sidebar-bottom .button {
+    font-size: 9px;
+  }
+  .sidebar-bottom .button-row {
+    gap: 12px;
+  }
+  .sidebar-bottom > .text-button {
+    font-size: 9px;
+  }
+  .workspace-toolbar {
+    padding: 20px 16px 16px;
+  }
+  .workspace-toolbar h1 {
+    font-size: 18px;
+  }
+  .workspace-toolbar .eyebrow {
+    font-size: 8px;
+  }
+  .canvas-area {
+    min-height: 330px;
+    margin: 0 12px 14px;
+  }
+  .empty-state {
+    padding: 25px 10px;
+  }
+  .empty-art {
+    height: 130px;
+    width: 150px;
+    margin-bottom: 10px;
+  }
+  .art-core {
+    width: 65px;
+    height: 65px;
+    font-size: 40px;
+  }
+  .art-orbit {
+    width: 125px;
+    height: 75px;
+  }
+  .empty-state h2 {
+    font-size: 26px;
+  }
+  .empty-state p {
+    font-size: 11px;
+  }
+  .suggestions {
+    margin-top: 20px;
+    gap: 6px;
+  }
+  .suggestions button {
+    font-size: 9px;
+    padding: 7px;
+  }
+  .composer {
+    margin: 0 12px;
+  }
+  .composer textarea {
+    font-size: 13px;
+  }
+  .prompt-meta .text-button {
+    font-size: 10px;
+  }
+  .generate-button {
+    font-size: 11px;
+    padding: 10px 13px;
+  }
+  .settings-sidebar {
+    padding: 20px 16px;
+    gap: 18px;
+    display: flex;
+  }
+  .settings-sidebar > #settings {
+    width: 100%;
+  }
+  .settings-sidebar > .section-heading {
+    margin-bottom: 0;
+  }
+  .estimate-panel,
+  .payload-panel {
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+  .editor-tools {
+    padding: 0 12px 12px;
+    gap: 6px;
+  }
+  .canvas-viewport {
+    min-height: 340px;
+    padding: 16px;
+  }
+  .inpaint-options {
+    margin: 0 12px 12px;
+    gap: 10px;
+  }
+  .toast {
+    bottom: 12px;
+    font-size: 11px;
+  }
+  .results-grid {
+    padding: 10px;
+    gap: 12px;
+  }
+  .dialog-actions {
+    flex-direction: column;
+  }
+  dialog {
+    padding: 20px;
+  }
+  .dialog-heading h2 {
+    font-size: 21px;
+  }
+  .resume-manual {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .reference-extra .text-button {
+    font-size: 8px;
+  }
+  .reference-card {
+    padding: 7px;
+    gap: 6px;
+  }
+  .reference-info strong {
+    font-size: 10px;
+  }
+  .version {
+    font-size: 8px;
+  }
+  .workspace-status {
+    padding: 10px 14px 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+@media (min-width: 901px) {
+  .studio {
+    height: calc(100dvh - 76px);
+    min-height: 650px;
+  }
+  .reference-sidebar,
+  .settings-sidebar {
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .workspace {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .canvas-area {
+    min-height: 200px;
+    overflow: auto;
+  }
+  .canvas-viewport {
+    min-height: 300px;
+    max-height: none;
+  }
+  .workspace-toolbar {
+    flex-shrink: 0;
+  }
+  .composer {
+    flex-shrink: 0;
+  }
+  .inpaint-options {
+    flex-shrink: 0;
+  }
+}
+
+.guide-instruction {
+  width: 100%;
+  color: #a8b999;
+}
+.guide-instruction summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+.guide-instruction .field {
+  margin: 9px 0;
+}
+.guide-instruction textarea {
+  font-size: 10px;
+  width: 100%;
+}

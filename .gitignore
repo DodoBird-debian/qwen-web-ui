@@ -1,0 +1,70 @@
+# Dependencies and generated build output
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+.cache/
+
+# Test runs and coverage (keep tests/ and docs/ screenshots)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+coverage/
+__pycache__/
+*.py[cod]
+
+# Environment secrets; sanitized examples may be committed
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local authentication files and private key material
+.npmrc
+.netrc
+.git-credentials
+.pypirc
+.htpasswd
+.htpasswd.*
+htpasswd
+htpasswd.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+/secrets/
+/credentials/
+/.aws/
+/.ssh/
+
+# Workspace-specific tooling state
+/.agents/
+/.codex/
+/.deploy/
+
+# Local deployment overrides (keep compose.yaml and public/config.json)
+*.local
+*.local.*
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yaml
+docker-compose.override.yml
+
+# Original source archives and generated release bundles at the project root
+/*.tar
+/*.tar.gz
+/*.tar.xz
+/*.tgz
+/*.zip
+/*.7z
+
+# Logs, editor temporary files and OS metadata
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
