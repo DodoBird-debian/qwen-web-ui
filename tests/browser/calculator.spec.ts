@@ -7,6 +7,56 @@ async function slide(page: Page, selector: string, value: number) {
   }, value);
 }
 
+test("configured worker model offload overrides old browser profiles across reload and reconnect", async ({ page }) => {
+  const endpoint = "offloaded-worker";
+  let calls = 0;
+  await page.route("**/config.json", route => route.fulfill({ json: {
+    endpointId: endpoint, serverAuth: true, workerOffload: "model",
+    gpuGiB: 80, safetyGiB: 3, offload: "text_encoder",
+  } }));
+  await page.route("**/api/runpod/**", route => { calls++; return route.abort(); });
+  await page.addInitScript(endpoint => {
+    if (localStorage.getItem("offload-fixture-seeded")) return;
+    localStorage.setItem("qwen-storage-enabled", "true");
+    localStorage.setItem(`qwen-profile:${endpoint}`, JSON.stringify({
+      gpuGiB: 24, safetyGiB: 2, offload: "text_encoder",
+    }));
+    localStorage.setItem("offload-fixture-seeded", "true");
+  }, endpoint);
+  await page.goto("/");
+  await expect(page.locator("#connection-dot")).toHaveClass(/connected/);
+  await page.locator("#prompt").fill("A vase");
+  await expect(page.locator("#gpu-inline-offload")).toHaveValue("model");
+  await expect(page.locator("#gpu-inline-offload")).toBeDisabled();
+  await expect(page.locator("#gpu-inline-capacity")).toHaveValue("24");
+  await expect(page.locator("#safety-adder")).toHaveValue("2");
+  await expect(page.locator(".vram-breakdown")).toContainText("16.96 GiB weights");
+  await expect(page.locator(".vram-breakdown")).not.toContainText("30.21 GiB weights");
+  await page.locator("#profile-open").click();
+  await expect(page.locator("#gpu-offload")).toHaveValue("model");
+  await expect(page.locator("#gpu-offload")).toBeDisabled();
+  await slide(page, "#gpu-safety", 3);
+  await page.locator("#profile-form button[type=submit]").click();
+  await page.reload();
+  await expect(page.locator("#gpu-inline-offload")).toHaveValue("model");
+  await expect(page.locator("#safety-adder")).toHaveValue("3");
+  // Other endpoints can still describe their own offload strategy.
+  await page.locator("#connection-open").click();
+  await page.locator("#endpoint-id").fill("another-worker");
+  await page.locator("#api-key").fill("fixture-key");
+  await page.locator("#connection-form button[type=submit]").click();
+  await expect(page.locator("#gpu-inline-offload")).toBeEnabled();
+  await page.locator("#gpu-inline-offload").selectOption("none");
+  await expect(page.locator(".vram-breakdown")).toContainText("30.21 GiB weights");
+  await page.locator("#connection-open").click();
+  await page.locator("#endpoint-id").fill(endpoint);
+  await page.locator("#connection-form button[type=submit]").click();
+  await expect(page.locator("#gpu-inline-offload")).toHaveValue("model");
+  await expect(page.locator("#gpu-inline-offload")).toBeDisabled();
+  await expect(page.locator(".vram-breakdown")).toContainText("16.96 GiB weights");
+  expect(calls).toBe(0);
+});
+
 test("GPU capacity and whole-GiB flat safety update both bars and persist without credentials", async ({
   page,
 }) => {

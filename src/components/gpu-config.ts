@@ -1,23 +1,30 @@
 import { $, toast } from "../lib/dom";
 import { saveProfile } from "../storage/db";
-import { validProfile, type Profile } from "../estimates/profile";
+import { validProfile, type Profile, type Offload } from "../estimates/profile";
 
 interface GPUConfigContext {
   endpoint: () => string;
   profile: () => Profile;
+  workerOffload: () => Offload | undefined;
   setProfile: (profile: Profile) => void;
   change: () => void;
 }
-export function syncGPUInputs(profile: Profile) {
+export function syncGPUInputs(profile: Profile, workerOffload?: Offload) {
   $<HTMLInputElement>("#gpu-inline-capacity").value = String(profile.gpuGiB);
   $<HTMLInputElement>("#safety-adder").value = String(profile.safetyGiB);
   $<HTMLSelectElement>("#gpu-inline-offload").value = profile.offload;
+  $<HTMLSelectElement>("#gpu-inline-offload").disabled = !!workerOffload;
+  $<HTMLSelectElement>("#gpu-offload").disabled = !!workerOffload;
+  $("#worker-offload-note").textContent = workerOffload
+    ? "Using this endpoint's configured worker offload"
+    : "Match CPU_OFFLOAD on your worker";
   $("#safety-output").textContent = `+${profile.safetyGiB} GiB`;
 }
 export function bindGPUConfig(context: GPUConfigContext) {
   function commit(profile: Profile) {
+    profile = { ...profile, offload: context.workerOffload() ?? profile.offload };
     context.setProfile(profile);
-    syncGPUInputs(profile);
+    syncGPUInputs(profile, context.workerOffload());
     try {
       saveProfile(
         context.endpoint() || $<HTMLInputElement>("#endpoint-id").value.trim(),
@@ -51,6 +58,7 @@ export function bindGPUConfig(context: GPUConfigContext) {
   });
   $("#profile-open").addEventListener("click", () => {
     const profile = context.profile();
+    syncGPUInputs(profile, context.workerOffload());
     $<HTMLInputElement>("#gpu-capacity").value = String(profile.gpuGiB);
     $<HTMLSelectElement>("#gpu-preset").value = "custom";
     $<HTMLInputElement>("#gpu-safety").value = String(profile.safetyGiB);

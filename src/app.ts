@@ -25,7 +25,7 @@ import { bindHistory } from "./components/history";
 import { ImageHistory } from "./components/image-history";
 import { openReferencePreparation } from "./components/reference-preparation";
 import { bindConnection } from "./components/connection";
-import { normalizeProfile } from "./estimates/profile";
+import { normalizeProfile, validOffload, type Offload } from "./estimates/profile";
 import { bindGPUConfig, syncGPUInputs } from "./components/gpu-config";
 import { loadProfile, saveProfile } from "./storage/db";
 import { bindProjects } from "./components/projects";
@@ -81,6 +81,13 @@ let endpoint = "",
   submitting = false,
   version = 0,
   refreshTimer: ReturnType<typeof setTimeout>;
+let serverWorkerOffload: Offload | undefined;
+function workerOffload() {
+  return endpoint && endpoint === serverEndpoint ? serverWorkerOffload : undefined;
+}
+function workerProfile(value: Profile): Profile {
+  return { ...value, offload: workerOffload() ?? value.offload };
+}
 let ready:
   | {
       body: string;
@@ -699,7 +706,8 @@ async function refresh() {
   $<HTMLInputElement>("#separate-jobs").disabled =
     runControls.kind !== "single";
   $<HTMLSelectElement>("#image-count").disabled = runControls.kind !== "single";
-  syncGPUInputs(profile);
+  profile = workerProfile(profile);
+  syncGPUInputs(profile, workerOffload());
   for (const item of document.querySelectorAll<HTMLElement>(
     "[data-reference-uses]",
   )) {
@@ -957,9 +965,10 @@ const refreshConnection = bindConnection({
   connect: (id, key) => {
     endpoint = id;
     apiKey = key;
+    profile = workerProfile(profile);
   },
   setProfile: (value) => {
-    profile = value;
+    profile = workerProfile(value);
   },
   change: scheduleRefresh,
 });
@@ -967,8 +976,9 @@ const refreshConnection = bindConnection({
 bindGPUConfig({
   endpoint: () => endpoint,
   profile: () => profile,
+  workerOffload,
   setProfile: (value) => {
-    profile = value;
+    profile = workerProfile(value);
   },
   change: scheduleRefresh,
 });
@@ -1292,6 +1302,7 @@ async function initialize() {
   try {
     const response = await fetch("/config.json", { cache: "no-store" });
     const config = await response.json();
+    if (validOffload(config.workerOffload)) serverWorkerOffload = config.workerOffload;
     const configuredProfile = normalizeProfile(config);
     if (configuredProfile) profile = configuredProfile;
     if (/^[A-Za-z0-9_-]+$/.test(config.endpointId || "")) {
@@ -1325,6 +1336,7 @@ async function initialize() {
       loadProfile($<HTMLInputElement>("#endpoint-id").value.trim()),
     );
     if (persisted) profile = persisted;
+    profile = workerProfile(profile);
   } catch {
     /* Storage optional. */
   }

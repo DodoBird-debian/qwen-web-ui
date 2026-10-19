@@ -19,7 +19,7 @@ import uuid
 
 from deploy import normalize_runpod
 
-PUBLIC_FIELDS = {'gpuGiB', 'offload', 'safetyGiB', 'historyLimit'}
+PUBLIC_FIELDS = {'gpuGiB', 'offload', 'workerOffload', 'safetyGiB', 'historyLimit'}
 
 
 def atomic_write(path, content, mode=0o600):
@@ -153,6 +153,8 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
     if previous and (current / 'config.json').is_file():
         defaults.update(json.loads((current / 'config.json').read_text()))
     public = {name: value for name, value in defaults.items() if name in PUBLIC_FIELDS}
+    if public.get('workerOffload') in {'none', 'text_encoder', 'model', 'sequential'}:
+        public['offload'] = public['workerOffload']
     public.update({'endpointId': endpoint, 'serverAuth': True})
     atomic_write(release / 'config.json', (json.dumps(public, indent=2) + '\n').encode(), 0o644)
     http = (source / 'nginx/http.conf.template').read_text()

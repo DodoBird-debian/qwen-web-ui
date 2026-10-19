@@ -177,7 +177,7 @@ valid worker references.
 
 The estimator independently ports the frozen `memory.py` formulas from worker
 commit `99c28f5d8a7fe0a5fa489ef4d619b1453198fccb`. GPU capacity, the flat safety addition and offload
-mode are local assumptions, not worker settings. There is no live GPU telemetry.
+mode describe the deployed worker. There is no live GPU telemetry.
 Estimates cannot guarantee admission or prevent OOM. Tokenizer-dependent
 positional checks remain authoritative on the worker. Custom weights/deployment
 versions can invalidate model and output-bound assumptions.
@@ -188,8 +188,13 @@ conditioning and DiT/VAE afterward; `model`/`sequential` reserve encoder+VAE dur
 conditioning, DiT+VAE during denoising, and VAE during decode. Encoder weights are
 therefore counted only where the worker budgets them. Worker tensor/placement
 fixtures verify parity. Extra safety is the only added allowance. The visible
-offload selector must match the deployed `CPU_OFFLOAD`; live free VRAM and custom
-checkpoint sizes cannot be inferred by the browser. The panel separates model
+offload selector must match the deployed `CPU_OFFLOAD`. `workerOffload` in
+`config.json` pins this mode for the server-authenticated endpoint, overriding
+older browser offload profiles while preserving capacity and extra safety.
+The supplied configuration uses `model` CPU offload: encoder and image-model
+weights are staged in separate phases. Other endpoints retain an editable
+offload selector. This setting describes the worker and does not reconfigure it.
+Live free VRAM and custom checkpoint sizes cannot be inferred by the browser. The panel separates model
 weights, worker tensors and extra safety, and includes the worker's log values.
 
 The VRAM panel has editable GPU capacity plus a **0–10 GiB safety slider in

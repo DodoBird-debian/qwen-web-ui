@@ -150,6 +150,23 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), content)
         self.assertIn(['systemctl', 'restart', 'nginx'], calls)
 
+    def test_new_worker_offload_survives_preserved_legacy_profile_on_redeployment(self):
+        source, host = self.fixture()
+        self.activate(source, host)
+        current = host / 'opt/qwen-image-studio/current'
+        legacy = json.loads((current / 'config.json').read_text())
+        legacy.update({'offload': 'text_encoder', 'gpuGiB': 24, 'safetyGiB': 2})
+        (current / 'config.json').write_text(json.dumps(legacy))
+        (source / 'dist/config.json').write_text(json.dumps({
+            'gpuGiB': 80, 'offload': 'model', 'workerOffload': 'model', 'safetyGiB': 3,
+        }))
+        self.activate(source, host)
+        public = json.loads((current / 'config.json').read_text())
+        self.assertEqual(public['workerOffload'], 'model')
+        self.assertEqual(public['offload'], 'model')
+        self.assertEqual(public['gpuGiB'], 24)
+        self.assertEqual(public['safetyGiB'], 2)
+
     def test_failed_first_health_check_removes_new_configuration(self):
         source, host = self.fixture()
         def unhealthy(endpoint, certificate=None):

@@ -7,8 +7,13 @@ export interface Profile {
 export const defaultProfile: Profile = {
   gpuGiB: 80,
   safetyGiB: 3,
-  offload: "text_encoder",
+  offload: "model",
 };
+
+export function validOffload(value: unknown): value is Offload {
+  return typeof value === "string" &&
+    ["none", "text_encoder", "model", "sequential"].includes(value);
+}
 
 export function validProfile(value: any): value is Profile {
   return (
@@ -19,7 +24,7 @@ export function validProfile(value: any): value is Profile {
     Number.isInteger(value.safetyGiB) &&
     value.safetyGiB >= 0 &&
     value.safetyGiB <= 10 &&
-    ["none", "text_encoder", "model", "sequential"].includes(value.offload)
+    validOffload(value.offload)
   );
 }
 
