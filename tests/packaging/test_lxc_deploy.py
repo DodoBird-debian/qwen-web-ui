@@ -75,6 +75,26 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             deployment.normalize_runpod({**SETTINGS, 'RUNPOD_API_KEY': 'unsafe";'} )
 
+    def test_turbo_defaults_are_isolated_and_never_served_as_public_secrets(self):
+        source, host = self.fixture()
+        turbo = {'RUNPOD_TURBO_API_KEY': 'rpa_turbo_fixture',
+                 'RUNPOD_TURBO_ENDPOINT_URL': 'https://api.runpod.ai/v2/turbo-fixture/runsync'}
+        self.assertEqual(deployment.normalize_turbo({}), {})
+        with self.assertRaises(ValueError):
+            deployment.normalize_turbo({'RUNPOD_TURBO_ENDPOINT_ID': 'missing-key'})
+        with patch.dict(SETTINGS, turbo):
+            self.activate(source, host)
+        public = json.loads((host / 'opt/qwen-image-studio/current/config.json').read_text())
+        self.assertEqual(public['models']['base']['endpointId'], 'fixture')
+        self.assertEqual(public['models']['turbo'], {'endpointId': 'turbo-fixture', 'serverAuth': True})
+        self.assertNotIn('rpa_', json.dumps(public))
+        private = (host / 'etc/qwen-image-studio/http.conf').read_text()
+        self.assertIn('~^:/api/runpod/fixture/', private)
+        self.assertIn('~^:/api/runpod/turbo-fixture/', private)
+        self.assertIn('"rpa_turbo_fixture"', private)
+        for file in (host / 'opt/qwen-image-studio/current').rglob('*'):
+            if file.is_file(): self.assertNotIn(b'rpa_turbo_fixture', file.read_bytes())
+
     def test_source_upload_excludes_secrets_builds_and_credentials(self):
         root = self.base / 'project'
         for name in ['package.json', '.env', '.env.deploy', '.env.example', '.deploy/known_hosts',

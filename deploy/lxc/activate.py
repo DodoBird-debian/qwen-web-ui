@@ -17,7 +17,7 @@ from urllib.request import urlopen
 from urllib.error import HTTPError
 import uuid
 
-from deploy import normalize_runpod
+from deploy import normalize_runpod, normalize_turbo
 
 PUBLIC_FIELDS = {'gpuGiB', 'offload', 'workerOffload', 'safetyGiB', 'historyLimit'}
 
@@ -127,7 +127,7 @@ def health_check(endpoint, certificate=None):
 
 
 def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=health_check):
-    runpod = normalize_runpod(settings)
+    runpod = {**normalize_runpod(settings), **normalize_turbo(settings)}
     endpoint, key = runpod['RUNPOD_ENDPOINT_ID'], runpod['RUNPOD_API_KEY']
     dist = source / 'dist'
     if not (dist / 'index.html').is_file():
@@ -156,14 +156,27 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
     if public.get('workerOffload') in {'none', 'text_encoder', 'model', 'sequential'}:
         public['offload'] = public['workerOffload']
     public.update({'endpointId': endpoint, 'serverAuth': True})
+    if runpod.get('RUNPOD_TURBO_API_KEY'):
+        models = defaults.get('models', {})
+        turbo_defaults = {name: value for name, value in models.get('turbo', {}).items() if name in PUBLIC_FIELDS}
+        public['models'] = {
+            'base': {**public},
+            'turbo': {**turbo_defaults, 'endpointId': runpod['RUNPOD_TURBO_ENDPOINT_ID'], 'serverAuth': True},
+        }
     atomic_write(release / 'config.json', (json.dumps(public, indent=2) + '\n').encode(), 0o644)
     http = (source / 'nginx/http.conf.template').read_text()
     marker = '# __RUNPOD_AUTH_DEFAULT__'
     if http.count(marker) != 1:
         raise ValueError('Nginx auth template is missing its deployment marker.')
     # An empty browser key can use the server key only for this exact endpoint.
-    rule = f'"~^:/api/runpod/{endpoint}/(?:run|health|status/[A-Za-z0-9_-]+|cancel/[A-Za-z0-9_-]+)$" "{key}";'
-    http = http.replace('__RESOLVERS__', resolvers).replace(marker, rule)
+    credentials = [(endpoint, key)]
+    if runpod.get('RUNPOD_TURBO_API_KEY'):
+        if runpod['RUNPOD_TURBO_ENDPOINT_ID'] == endpoint:
+            raise ValueError('Base and Turbo defaults must use separate endpoint IDs.')
+        credentials.append((runpod['RUNPOD_TURBO_ENDPOINT_ID'], runpod['RUNPOD_TURBO_API_KEY']))
+    rules = '\n    '.join(f'"~^:/api/runpod/{id}/(?:run|health|status/[A-Za-z0-9_-]+|cancel/[A-Za-z0-9_-]+)$" "{secret}";'
+                          for id, secret in credentials)
+    http = http.replace('__RESOLVERS__', resolvers).replace(marker, rules)
     entry = base / 'etc/nginx/conf.d/qwen-image-studio.conf'
     default_site = base / 'etc/nginx/sites-enabled/default'
     tls = config / 'tls'
@@ -175,7 +188,10 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
     def command(*args, check=True):
         result = run(list(args), text=True, capture_output=True, check=False)
         if check and result.returncode:
-            diagnostic = (result.stderr or result.stdout or '').replace(key, '[redacted]').strip()
+            diagnostic = result.stderr or result.stdout or ''
+            for _, secret in credentials:
+                diagnostic = diagnostic.replace(secret, '[redacted]')
+            diagnostic = diagnostic.strip()
             raise RuntimeError(f'{args[0]} failed: {diagnostic}')
         return result
     try:

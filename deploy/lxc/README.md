@@ -27,6 +27,26 @@ RUNPOD_ENDPOINT_URL='https://api.runpod.ai/v2/YOUR_ENDPOINT_ID'
 `/health` are normalized to the endpoint base; the app still uses asynchronous
 `/run`. If both values are present, their endpoint IDs must agree.
 
+To configure a separate Turbo node, add its own defaults to the same private
+`.env` file:
+
+```dotenv
+RUNPOD_TURBO_API_KEY='your-turbo-key'
+RUNPOD_TURBO_ENDPOINT_URL='https://api.runpod.ai/v2/YOUR_TURBO_ENDPOINT_ID/runsync'
+```
+
+The endpoint dialog's **Model** selector keeps Base and Turbo endpoints and key
+overrides separate. Both endpoints and keys remain editable. **Use model
+defaults** restores the selected node's server defaults. Turbo locks denoising to
+8 steps, including imports and resets; returning to Base restores its previous
+editable step count and comparison axes. Status polling and cancellation keep
+using the original job's endpoint when the selected model changes.
+
+Both default keys stay in server-only configuration and are matched to their
+exact endpoint IDs. Optional browser persistence saves model/endpoint choices;
+entered keys remain in tab memory. Local Vite development reads the same `.env`
+defaults without placing keys in its public configuration or built assets.
+
 `.env.deploy` holds the SSH connection:
 
 ```dotenv

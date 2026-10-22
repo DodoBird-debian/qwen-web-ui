@@ -4,5 +4,15 @@
   "offload": "model",
   "workerOffload": "model",
   "safetyGiB": 3,
-  "historyLimit": 12
+  "historyLimit": 12,
+  "models": {
+    "turbo": {
+      "endpointId": "m3efd79odne8wa",
+      "serverAuth": false,
+      "workerOffload": "model",
+      "gpuGiB": 80,
+      "offload": "model",
+      "safetyGiB": 3
+    }
+  }
 }

@@ -25,7 +25,8 @@ import { bindHistory } from "./components/history";
 import { ImageHistory } from "./components/image-history";
 import { openReferencePreparation } from "./components/reference-preparation";
 import { bindConnection } from "./components/connection";
-import { normalizeProfile, validOffload, type Offload } from "./estimates/profile";
+import { EndpointConnections, MODEL_LABELS, type ModelVariant } from "./api/endpoints";
+import { normalizeProfile } from "./estimates/profile";
 import { bindGPUConfig, syncGPUInputs } from "./components/gpu-config";
 import { loadProfile, saveProfile } from "./storage/db";
 import { bindProjects } from "./components/projects";
@@ -74,16 +75,15 @@ let mode: Mode = "generate",
   references: Reference[] = [],
   profile: Profile = { ...defaultProfile };
 let workspaceView: "editor" | "results" = "editor";
+const connections = new EndpointConnections();
+const modelProfiles: Record<ModelVariant, Profile> = { base: { ...defaultProfile }, turbo: { ...defaultProfile } };
 let endpoint = "",
-  serverEndpoint = "",
-  apiKey = "",
   working = false,
   submitting = false,
   version = 0,
   refreshTimer: ReturnType<typeof setTimeout>;
-let serverWorkerOffload: Offload | undefined;
 function workerOffload() {
-  return endpoint && endpoint === serverEndpoint ? serverWorkerOffload : undefined;
+  return connections.offload(endpoint);
 }
 function workerProfile(value: Profile): Profile {
   return { ...value, offload: workerOffload() ?? value.offload };
@@ -161,10 +161,8 @@ async function submitJob(...args: Parameters<JobManager["submit"]>) {
 }
 
 async function cancelJob(record: SavedJob, transport?: RunpodClient) {
-  if (!transport && endpoint !== record.endpoint)
-    throw new Error("Connect to the job’s original endpoint before cancelling.");
   try {
-    await manager.cancel(transport || client(), record);
+    await manager.cancel(transport || connections.client(record.endpoint), record);
     toast("Cancellation requested. Waiting for RunPod status confirmation.");
   } finally {
     // A paused/reloaded job must resume status checks after a cancellation,
@@ -273,7 +271,7 @@ $("#persist-browser").addEventListener("change", async () => {
     await setPersistence(enabled);
     if (enabled) {
       saveProfile(endpoint, profile);
-      if (endpoint) localStorage.setItem("qwen-endpoint", endpoint);
+      if (endpoint) connections.persist();
     }
     localStorage.setItem("qwen-storage-enabled", String(enabled));
     storageNote();
@@ -952,20 +950,20 @@ $("#mask-export").addEventListener("click", () => {
 });
 
 function client() {
-  return new RunpodClient(endpoint, apiKey, undefined, serverEndpoint);
+  return connections.client();
 }
 function hasConnection() {
-  return !!endpoint && (!!apiKey || endpoint === serverEndpoint);
+  return connections.connected;
 }
 const refreshConnection = bindConnection({
-  endpoint: () => endpoint,
-  key: () => apiKey,
-  serverEndpoint: () => serverEndpoint,
-  profile: () => profile,
-  connect: (id, key) => {
-    endpoint = id;
-    apiKey = key;
-    profile = workerProfile(profile);
+  connections,
+  connect: (model, id, key) => {
+    if (endpoint) saveProfile(endpoint, profile);
+    connections.connect(model, id, key);
+    endpoint = connections.current.endpoint;
+    profile = workerProfile(normalizeProfile(loadProfile(endpoint)) ?? modelProfiles[model]);
+    settings.setTurbo(model === "turbo");
+    runControls.setTurbo(model === "turbo");
   },
   setProfile: (value) => {
     profile = workerProfile(value);
@@ -1100,9 +1098,11 @@ async function resume(record: SavedJob) {
     toast("Stop current polling before resuming another job.");
     return;
   }
-  if (!hasConnection() || endpoint !== record.endpoint) {
-    $<HTMLInputElement>("#endpoint-id").value = record.endpoint;
-    refreshConnection();
+  let transport: RunpodClient;
+  try {
+    transport = connections.client(record.endpoint);
+  } catch {
+    refreshConnection(record.endpoint);
     $<HTMLDialogElement>("#connection-dialog").showModal();
     toast("Connect to this job’s endpoint, then resume.");
     return;
@@ -1110,7 +1110,7 @@ async function resume(record: SavedJob) {
   working = true;
   scheduleRefresh();
   try {
-    await manager.follow(client(), record);
+    await manager.follow(transport, record);
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError"))
       toast(String(error), true);
@@ -1302,17 +1302,11 @@ async function initialize() {
   try {
     const response = await fetch("/config.json", { cache: "no-store" });
     const config = await response.json();
-    if (validOffload(config.workerOffload)) serverWorkerOffload = config.workerOffload;
+    connections.configure(config);
     const configuredProfile = normalizeProfile(config);
-    if (configuredProfile) profile = configuredProfile;
-    if (/^[A-Za-z0-9_-]+$/.test(config.endpointId || "")) {
-      $<HTMLInputElement>("#endpoint-id").value = config.endpointId;
-      if (config.serverAuth === true) {
-        endpoint = serverEndpoint = config.endpointId;
-        $("#connection-label").textContent = endpoint;
-        $("#connection-dot").classList.add("connected");
-      }
-    }
+    if (configuredProfile) modelProfiles.base = configuredProfile;
+    const turboProfile = normalizeProfile(config.models?.turbo);
+    if (turboProfile) modelProfiles.turbo = turboProfile;
     if (
       Number.isInteger(config.historyLimit) &&
       config.historyLimit >= 1 &&
@@ -1328,17 +1322,18 @@ async function initialize() {
       $<HTMLInputElement>("#persist-browser").checked = true;
       storageNote();
     }
-    const saved = persistenceEnabled()
-      ? localStorage.getItem("qwen-endpoint")
-      : null;
-    if (saved && !serverEndpoint) $<HTMLInputElement>("#endpoint-id").value = saved;
-    const persisted = normalizeProfile(
-      loadProfile($<HTMLInputElement>("#endpoint-id").value.trim()),
-    );
-    if (persisted) profile = persisted;
-    profile = workerProfile(profile);
+    if (persistenceEnabled()) connections.restore();
   } catch {
     /* Storage optional. */
+  }
+  endpoint = connections.current.endpoint;
+  profile = workerProfile(normalizeProfile(loadProfile(endpoint)) ?? modelProfiles[connections.model]);
+  settings.setTurbo(connections.model === "turbo");
+  runControls.setTurbo(connections.model === "turbo");
+  if (hasConnection()) {
+    $("#connection-label").textContent = endpoint;
+    $("#connection-label").title = MODEL_LABELS[connections.model];
+    $("#connection-dot").classList.add("connected");
   }
   manager.setHistoryLimit(historyLimit);
   try { await imageHistory.restore(); } catch { toast("Saved image history could not be loaded.", true); }

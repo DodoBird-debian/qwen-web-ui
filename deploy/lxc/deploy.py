@@ -83,6 +83,18 @@ def normalize_runpod(values):
             'RUNPOD_ENDPOINT_URL': f'https://api.runpod.ai/v2/{endpoint}'}
 
 
+def normalize_turbo(values):
+    names = ('API_KEY', 'ENDPOINT_ID', 'ENDPOINT_URL')
+    supplied = {f'RUNPOD_{name}': values.get(f'RUNPOD_TURBO_{name}', '') for name in names}
+    if not any(supplied.values()):
+        return {}
+    try:
+        result = normalize_runpod(supplied)
+    except ValueError as error:
+        raise ValueError(str(error).replace('RUNPOD_', 'RUNPOD_TURBO_')) from error
+    return {name.replace('RUNPOD_', 'RUNPOD_TURBO_'): value for name, value in result.items()}
+
+
 def source_paths(root=ROOT):
     paths = [root / name for name in ROOT_FILES if (root / name).is_file()]
     for directory in SOURCE_DIRS:
@@ -111,7 +123,7 @@ def main(argv=None):
     parser.add_argument('--check', action='store_true', help='validate settings and list the deployment plan without connecting')
     args = parser.parse_args(argv)
     values = {**read_env(args.env_file), **read_env(args.ssh_env_file), **os.environ}
-    runpod = normalize_runpod(values)
+    runpod = {**normalize_runpod(values), **normalize_turbo(values)}
     host = values.get('LXC_HOST', '')
     user = values.get('LXC_USER', 'root')
     port = values.get('LXC_PORT', '22')
@@ -143,7 +155,7 @@ def main(argv=None):
         temp = Path(temporary)
         env = dict(os.environ)
         # Credentials are sent only in the SSH prompt or encrypted stdin, never argv.
-        for name in ('RUNPOD_API_KEY', 'LXC_PASSWORD'):
+        for name in ('RUNPOD_API_KEY', 'RUNPOD_TURBO_API_KEY', 'LXC_PASSWORD'):
             env.pop(name, None)
         if password:
             password_file = temp / 'password'

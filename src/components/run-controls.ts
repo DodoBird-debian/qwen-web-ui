@@ -7,6 +7,8 @@ import {
 import type { Input } from "../api/contract";
 import { button, node } from "../lib/dom";
 export class RunControls {
+  private turbo = false;
+  private baseGrid?: string[];
   constructor(
     private root: HTMLElement,
     change: () => void,
@@ -48,6 +50,24 @@ export class RunControls {
   get kind() {
     return this.value("run-kind");
   }
+  setTurbo(enabled: boolean) {
+    if (enabled === this.turbo) return;
+    const ids = ["grid-x", "grid-y", "grid-x-values", "grid-y-values"];
+    if (enabled) this.baseGrid = ids.map(id => this.value(id));
+    this.turbo = enabled;
+    this.root.querySelectorAll<HTMLOptionElement>('option[value="steps"]').forEach(option => option.disabled = enabled);
+    if (enabled) {
+      if (this.value("grid-x") === "steps") {
+        this.root.querySelector<HTMLSelectElement>("#grid-x")!.value = "seed";
+        this.root.querySelector<HTMLInputElement>("#grid-x-values")!.value = "100,101,102";
+        if (this.value("grid-y") === "seed") this.root.querySelector<HTMLSelectElement>("#grid-y")!.value = "cfg";
+      }
+      if (this.value("grid-y") === "steps") this.root.querySelector<HTMLSelectElement>("#grid-y")!.value = "none";
+    } else if (this.baseGrid) {
+      ids.forEach((id, index) => this.root.querySelector<HTMLInputElement | HTMLSelectElement>(`#${id}`)!.value = this.baseGrid![index]);
+    }
+    this.sync();
+  }
   private sync() {
     this.root.querySelector<HTMLElement>("#series-controls")!.hidden =
       this.kind !== "series";
@@ -55,6 +75,11 @@ export class RunControls {
       this.kind !== "grid";
   }
   plan(input: Input, negative: string): GenerationPlan | undefined {
+    if (this.turbo) {
+      input = { ...input, num_inference_steps: 8 };
+      if (this.kind === "grid" && [this.value("grid-x"), this.value("grid-y")].includes("steps"))
+        throw new Error("Turbo uses fixed 8 steps; compare CFG or seeds instead.");
+    }
     if (this.kind === "single") return;
     if (this.kind === "series")
       return planSeries(
