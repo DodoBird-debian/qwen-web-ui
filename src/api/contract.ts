@@ -32,7 +32,7 @@ export const DEFAULTS: Input = {
   prompt: "",
   width: 1024,
   height: 1024,
-  num_inference_steps: 40,
+  num_inference_steps: 8,
   seed: "-1",
   num_images: 1,
   images: [],
