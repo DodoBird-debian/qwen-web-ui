@@ -2,7 +2,7 @@ import { RunpodClient } from "./runpod";
 import { validOffload, type Offload } from "../estimates/profile";
 
 export type ModelVariant = "base" | "turbo";
-export const TURBO_ENDPOINT = "m3efd79odne8wa";
+export const TURBO_ENDPOINT = "kvvrwkisxhk8h7";
 export const MODEL_LABELS = { base: "Qwen-Image 2.1", turbo: "Qwen-Image 2.1 Turbo" };
 export interface EndpointPreset {
   endpointId: string;
@@ -75,7 +75,10 @@ export class EndpointConnections {
     try {
       const ids = JSON.parse(localStorage.getItem("qwen-endpoints") || "null");
       for (const model of ["base", "turbo"] as const) {
-        const id = ids?.[model] ?? (model === "base" ? localStorage.getItem("qwen-endpoint") : null);
+        let id = ids?.[model] ?? (model === "base" ? localStorage.getItem("qwen-endpoint") : null);
+        // Follow the replacement default without changing custom endpoint choices.
+        if (model === "turbo" && id === "m3efd79odne8wa" && this.presets.turbo.endpointId === TURBO_ENDPOINT)
+          id = TURBO_ENDPOINT;
         if (typeof id === "string" && /^[A-Za-z0-9_-]+$/.test(id))
           this.saved[model] = { endpoint: id, key: "" };
       }

@@ -7,7 +7,7 @@
   "historyLimit": 12,
   "models": {
     "turbo": {
-      "endpointId": "m3efd79odne8wa",
+      "endpointId": "kvvrwkisxhk8h7",
       "serverAuth": false,
       "workerOffload": "model",
       "gpuGiB": 80,

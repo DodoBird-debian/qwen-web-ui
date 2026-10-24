@@ -1,7 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { EndpointConnections, endpointId } from "../../src/api/endpoints";
+import { EndpointConnections, endpointId, TURBO_ENDPOINT } from "../../src/api/endpoints";
 
 describe("independent model connections", () => {
+  it("restores the replacement Turbo default without changing custom choices", () => {
+    const data = new Map<string, string>([["qwen-model", "turbo"]]);
+    vi.stubGlobal("localStorage", { getItem: (key: string) => data.get(key) ?? null });
+    try {
+      for (const [saved, expected] of [["m3efd79odne8wa", TURBO_ENDPOINT], [TURBO_ENDPOINT, TURBO_ENDPOINT], ["custom-turbo", "custom-turbo"]]) {
+        data.set("qwen-endpoints", JSON.stringify({ base: "custom-base", turbo: saved }));
+        const connections = new EndpointConnections();
+        connections.configure({ models: { turbo: { endpointId: TURBO_ENDPOINT, serverAuth: true } } });
+        connections.restore();
+        expect(connections.saved.base.endpoint).toBe("custom-base");
+        expect(connections.current).toEqual({ endpoint: expected, key: "" });
+        expect(connections.connected).toBe(expected === TURBO_ENDPOINT);
+      }
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("keeps GPU settings editable before an endpoint is connected", () => {
     const connections = new EndpointConnections();
     connections.configure({ endpointId: "", workerOffload: "model" });
