@@ -20,7 +20,7 @@ export function outputBudget(input: Input) {
       guaranteedFit: false,
       bound: null,
       message:
-        "Compressed output size is uncertain. The frozen worker routes multi-image WebP/JPEG jobs sequentially.",
+        "Compressed output size varies by image. The worker may compress, resize, or return fewer images to fit the 8 MB response limit.",
     };
   const bytes = pngBound(input.width, input.height);
   // Mirrors Python json.dumps default separators; seed length uses the maximum.
@@ -34,6 +34,6 @@ export function outputBudget(input: Input) {
     bound,
     message: guaranteedFit
       ? "PNG transport bound fits the pinned encoder/profile."
-      : "PNG transport fit is uncertain; multiple outputs will route sequentially. Large results can still exceed the 8 MB output cap.",
+      : "Full-size PNG delivery is uncertain. The worker may compress, resize, or return fewer images to fit the 8 MB response limit.",
   };
 }

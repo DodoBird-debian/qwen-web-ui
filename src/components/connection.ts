@@ -1,14 +1,12 @@
 import { $, toast } from "../lib/dom";
 import { json } from "../api/json";
 import { RunpodClient } from "../api/runpod";
-import { loadProfile, persistenceEnabled } from "../storage/db";
-import { normalizeProfile, type Profile } from "../estimates/profile";
+import { persistenceEnabled } from "../storage/db";
 import { endpointId, MODEL_LABELS, type EndpointConnections, type ModelVariant, type EndpointCredentials } from "../api/endpoints";
 
 export interface ConnectionContext {
   connections: EndpointConnections;
   connect: (model: ModelVariant, endpoint: string, key: string) => void;
-  setProfile: (value: Profile) => void;
   change: () => void;
 }
 export function bindConnection(context: ConnectionContext) {
@@ -71,8 +69,6 @@ export function bindConnection(context: ConnectionContext) {
       const endpoint = endpointId($<HTMLInputElement>("#endpoint-id").value),
         key = keyForDraft();
       context.connect(selected, endpoint, key);
-      const stored = normalizeProfile(loadProfile(endpoint));
-      if (stored) context.setProfile(stored);
       try {
         if (persistenceEnabled())
           connections.persist();

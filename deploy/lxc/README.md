@@ -139,10 +139,9 @@ Configuration lives in `/etc/qwen-image-studio/`. On updates, existing configura
 is preserved and new distribution files are written alongside it for review.
 Non-secret UI defaults live in `/opt/qwen-image-studio/current/config.json` and
 are carried forward. Re-run the installer with a new built release to update.
-`workerOffload` specifies the server endpoint's deployed `CPU_OFFLOAD` (`model`
-in the supplied configuration). It takes precedence over saved browser offload
-profiles; GPU capacity and safety remain editable. This is deployment configuration,
-not live worker telemetry, and it does not change the remote worker.
+Set the optional `workerOffload` to the endpoint's deployed `CPU_OFFLOAD` to
+seed the UI estimate. A saved browser profile takes precedence. Check the
+worker's startup log for the active mode.
 Nginx is validated before reload. Monitor with `systemctl status nginx` and
 `journalctl -u nginx`.
 

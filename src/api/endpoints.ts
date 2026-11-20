@@ -24,7 +24,7 @@ export class EndpointConnections {
   model: ModelVariant = "base";
   readonly presets: Record<ModelVariant, EndpointPreset> = {
     base: { endpointId: "", serverAuth: false },
-    turbo: { endpointId: TURBO_ENDPOINT, serverAuth: false, workerOffload: "model" },
+    turbo: { endpointId: TURBO_ENDPOINT, serverAuth: false },
   };
   readonly saved: Record<ModelVariant, EndpointCredentials> = {
     base: { endpoint: "", key: "" },

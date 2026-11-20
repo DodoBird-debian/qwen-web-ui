@@ -77,7 +77,7 @@ describe("GPU profiles and buffered batch projections", () => {
     expect(batch.route).toBe("parallel");
     expect(batch.memory.safeParallelPeak).toBeLessThan(24 * GiB);
   });
-  it("separates parallel, memory fallback, rejection and transport fallback", () => {
+  it("separates parallel routing, memory fallback and rejection", () => {
     const profile = { ...defaultProfile, gpuGiB: 80, safetyGiB: 0 };
     expect(projectBatch(input, sizes, profile, 4).route).toBe("parallel");
     const m = estimate({ ...input, num_images: 4 }, sizes, profile);
@@ -94,10 +94,20 @@ describe("GPU profiles and buffered batch projections", () => {
         4,
       ).route,
     ).toBe("over-capacity");
-    expect(
-      projectBatch({ ...input, width: 1024, height: 1024 }, sizes, profile, 4)
-        .route,
-    ).toBe("sequential-output");
     expect(projectBatch(input, sizes, profile, 1).route).toBe("single");
   });
+  it.each(["png", "jpeg", "webp"] as const)(
+    "estimates the physical batch when %s delivery size is uncertain",
+    (output_format) => {
+      const batch = projectBatch(
+        { ...input, width: 1024, height: 1024, true_cfg_scale: 2, output_format },
+        sizes,
+        defaultProfile,
+        4,
+      );
+      expect(batch.route).toBe("parallel");
+      expect(batch.output.guaranteedFit).toBe(false);
+      expect(batch.memory.safeParallelPeak).toBeGreaterThan(batch.memory.safePeak);
+    },
+  );
 });

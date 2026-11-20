@@ -85,8 +85,10 @@ let endpoint = "",
 function workerOffload() {
   return connections.offload(endpoint);
 }
-function workerProfile(value: Profile): Profile {
-  return { ...value, offload: workerOffload() ?? value.offload };
+function endpointProfile(): Profile {
+  const saved = normalizeProfile(loadProfile(endpoint));
+  const defaults = modelProfiles[connections.model];
+  return saved ?? { ...defaults, offload: workerOffload() ?? defaults.offload };
 }
 let ready:
   | {
@@ -704,7 +706,6 @@ async function refresh() {
   $<HTMLInputElement>("#separate-jobs").disabled =
     runControls.kind !== "single";
   $<HTMLSelectElement>("#image-count").disabled = runControls.kind !== "single";
-  profile = workerProfile(profile);
   syncGPUInputs(profile, workerOffload());
   for (const item of document.querySelectorAll<HTMLElement>(
     "[data-reference-uses]",
@@ -961,12 +962,9 @@ const refreshConnection = bindConnection({
     if (endpoint) saveProfile(endpoint, profile);
     connections.connect(model, id, key);
     endpoint = connections.current.endpoint;
-    profile = workerProfile(normalizeProfile(loadProfile(endpoint)) ?? modelProfiles[model]);
+    profile = endpointProfile();
     settings.setTurbo(model === "turbo");
     runControls.setTurbo(model === "turbo");
-  },
-  setProfile: (value) => {
-    profile = workerProfile(value);
   },
   change: scheduleRefresh,
 });
@@ -976,7 +974,7 @@ bindGPUConfig({
   profile: () => profile,
   workerOffload,
   setProfile: (value) => {
-    profile = workerProfile(value);
+    profile = value;
   },
   change: scheduleRefresh,
 });
@@ -1303,7 +1301,7 @@ async function initialize() {
     const response = await fetch("/config.json", { cache: "no-store" });
     const config = await response.json();
     connections.configure(config);
-    const configuredProfile = normalizeProfile(config);
+    const configuredProfile = normalizeProfile(config.models?.base) ?? normalizeProfile(config);
     if (configuredProfile) modelProfiles.base = configuredProfile;
     const turboProfile = normalizeProfile(config.models?.turbo);
     if (turboProfile) modelProfiles.turbo = turboProfile;
@@ -1327,7 +1325,7 @@ async function initialize() {
     /* Storage optional. */
   }
   endpoint = connections.current.endpoint;
-  profile = workerProfile(normalizeProfile(loadProfile(endpoint)) ?? modelProfiles[connections.model]);
+  profile = endpointProfile();
   settings.setTurbo(connections.model === "turbo");
   runControls.setTurbo(connections.model === "turbo");
   if (hasConnection()) {

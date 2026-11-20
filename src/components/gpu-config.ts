@@ -13,16 +13,13 @@ export function syncGPUInputs(profile: Profile, workerOffload?: Offload) {
   $<HTMLInputElement>("#gpu-inline-capacity").value = String(profile.gpuGiB);
   $<HTMLInputElement>("#safety-adder").value = String(profile.safetyGiB);
   $<HTMLSelectElement>("#gpu-inline-offload").value = profile.offload;
-  $<HTMLSelectElement>("#gpu-inline-offload").disabled = !!workerOffload;
-  $<HTMLSelectElement>("#gpu-offload").disabled = !!workerOffload;
   $("#worker-offload-note").textContent = workerOffload
-    ? "Using this endpoint's configured worker offload"
+    ? `Endpoint default is ${workerOffload}. Match CPU_OFFLOAD on your worker.`
     : "Match CPU_OFFLOAD on your worker";
   $("#safety-output").textContent = `+${profile.safetyGiB} GiB`;
 }
 export function bindGPUConfig(context: GPUConfigContext) {
   function commit(profile: Profile) {
-    profile = { ...profile, offload: context.workerOffload() ?? profile.offload };
     context.setProfile(profile);
     syncGPUInputs(profile, context.workerOffload());
     try {

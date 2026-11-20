@@ -7,7 +7,6 @@ export type GenerationRoute =
   | "single"
   | "parallel"
   | "sequential-memory"
-  | "sequential-output"
   | "separate-jobs";
 export function projectBatch(
   input: Input,
@@ -27,9 +26,7 @@ export function projectBatch(
         ? "single"
         : memory.memoryRoute !== "parallel candidate"
           ? "sequential-memory"
-          : !output.guaranteedFit
-            ? "sequential-output"
-            : "parallel";
+          : "parallel";
   return { count, memory, output, route };
 }
 export function projectBatches(
@@ -47,7 +44,6 @@ export function routeLabel(route: GenerationRoute): string {
     single: "Sequential · 1 image",
     parallel: "Parallel generation",
     "sequential-memory": "Sequential · VRAM budget",
-    "sequential-output": "Sequential · output budget",
     "separate-jobs": "Sequential · separate jobs",
   }[route];
 }
@@ -57,11 +53,9 @@ export function routeReason(route: GenerationRoute): string {
       "Even one image exceeds the configured capacity with your safety buffer.",
     single: "This request contains one image.",
     parallel:
-      "Both the buffered VRAM estimate and PNG transport bound admit a physical batch.",
+      "A physical batch fits the configured VRAM budget with your buffer.",
     "sequential-memory":
       "One image fits, but the physical batch exceeds the configured VRAM budget with your buffer.",
-    "sequential-output":
-      "VRAM admits a physical batch; the frozen worker's inline-output bound routes it sequentially.",
     "separate-jobs":
       "The UI submits one image per job because Separate output jobs is enabled.",
   }[route];

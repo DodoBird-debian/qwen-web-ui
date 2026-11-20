@@ -189,11 +189,11 @@ conditioning, DiT+VAE during denoising, and VAE during decode. Encoder weights a
 therefore counted only where the worker budgets them. Worker tensor/placement
 fixtures verify parity. Extra safety is the only added allowance. The visible
 offload selector must match the deployed `CPU_OFFLOAD`. `workerOffload` in
-`config.json` pins this mode for the server-authenticated endpoint, overriding
-older browser offload profiles while preserving capacity and extra safety.
-The supplied configuration uses `model` CPU offload: encoder and image-model
-weights are staged in separate phases. Other endpoints retain an editable
-offload selector. This setting describes the worker and does not reconfigure it.
+`config.json` provides an initial estimate for a matching endpoint. Saved
+browser profiles take precedence. The sample profile starts with `model`
+offload, which stages the encoder and transformer in different phases. Both
+offload selectors are editable. Check the worker's startup log for its actual
+`CPU_OFFLOAD` setting. The selector only changes the estimate.
 Live free VRAM and custom checkpoint sizes cannot be inferred by the browser. The panel separates model
 weights, worker tensors and extra safety, and includes the worker's log values.
 
@@ -208,9 +208,9 @@ Green sequential and blue physical-batch bars share the same GPU-capacity scale;
 amber segments show the flat safety addition. The **1–4× batch preview** defaults
 to 4× and does not change the requested Images count. Expand the comparison for
 all four batch sizes and phase peaks. Separate indicators show the current
-request's predicted route and the preview route, including memory fallback and
-the frozen worker's output-budget fallback. These are conservative local
-predictions, not a command to force worker scheduling.
+request's predicted route and the preview route, including fallback when the
+configured VRAM budget is too small for the full batch. The running worker
+chooses the route using its available memory.
 
 The CFG selector is a **1–4 slider in 0.1 steps** with a live value. The frozen
 API still supports its original range: valid imported CFG values outside the
@@ -220,9 +220,10 @@ whitespace-only text before it can submit a job.
 
 [Calculator preview](docs/vram-calculator.png) · [GPU configuration](docs/gpu-config.png).
 
-Input fit does not guarantee output fit: a generated image can exceed the inline
-cap after inference, with no partial success. PNG transport guidance assumes the
-pinned worker encoder. JPEG/WebP size is uncertain. **Separate output jobs** is
+The worker fits completed images to the inline cap. It can compress, resize,
+change format, or return fewer images when delivery exceeds the cap. PNG
+transport guidance estimates whether the full batch can fit. JPEG and WebP
+sizes depend on the image content. **Separate output jobs** is
 an explicit option that submits one job at a time with consecutive exact seeds;
 it repeats conditioning work and still cannot guarantee a single image fits.
 
