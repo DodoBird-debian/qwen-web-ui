@@ -1,5 +1,6 @@
 # WebUI audit — 1.2.1
 
+
 2026-10-18. Scope: the standalone WebUI. The frozen worker and its request schema
 remain unchanged. Inference used deterministic browser fixtures, never a paid endpoint.
 
