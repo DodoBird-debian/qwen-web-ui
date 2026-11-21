@@ -1,4 +1,5 @@
 import { ASPECTS, DEFAULTS, type Input } from "../api/contract";
+import type { RunControls } from "./run-controls";
 import { $ } from "../lib/dom";
 
 export class SettingsPanel {
@@ -7,7 +8,7 @@ export class SettingsPanel {
   private importedCfg?: number;
   private turbo = false;
   private baseSteps = String(DEFAULTS.num_inference_steps);
-  constructor(root: HTMLElement, change: () => void) {
+  constructor(root: HTMLElement, change: () => void, private runs: RunControls) {
     this.root = root;
     this.change = change;
     root.innerHTML = `
@@ -20,7 +21,7 @@ export class SettingsPanel {
       )
       .join("")}</select></label>
     <div class="field-row"><label class="field">Width<input id="width" type="number" value="1024" min="256" max="4096" step="32"></label><span class="times">×</span><label class="field">Height<input id="height" type="number" value="1024" min="256" max="4096" step="32"></label></div>
-    <div class="field-row"><label class="field">Steps<input id="steps" type="number" value="8" min="1" max="100"><small id="turbo-steps-note" hidden>Turbo uses its fixed 8-step schedule</small></label><label class="field">Images / request<select id="image-count"><option>1</option><option>2</option><option>3</option><option>4</option></select><small>Maximum 4 per API request</small></label></div>
+    <label class="field">Steps<input id="steps" type="number" value="8" min="1" max="100"><small id="turbo-steps-note" hidden>Turbo uses its fixed 8-step schedule</small></label>
     <label class="field">Seed<span class="input-action"><input id="seed" type="text" inputmode="numeric" value="-1" autocomplete="off"><button id="random-seed" type="button" title="Use random seed" aria-label="Use random seed">⤨</button></span><small>-1 chooses a random seed</small></label>
     <div class="field-row"><label class="field">Format<select id="format"><option value="png">PNG</option><option value="webp">WebP</option><option value="jpeg">JPEG</option></select></label><label class="field">Quality<input id="quality" type="number" min="1" max="100" value="95"></label></div>
     <label class="switch-field"><span>Transparent background<small>Prompt the model for RGBA output</small></span><input id="transparent" type="checkbox" role="switch"></label>
@@ -28,7 +29,6 @@ export class SettingsPanel {
       <label class="field cfg-control"><span>True CFG scale <output id="cfg-output">1.0</output></span><input id="cfg" type="range" min="1" max="4" step="0.1" value="1"><small>1–4 · above 1 adds a second transformer pass</small><small id="cfg-import-note" hidden></small></label>
       <label class="field">Reference processing<select id="ref-resolution"><option value="512">512 · lower memory</option><option value="1024" selected>1024 · default</option><option value="2048">2048 · more detail</option></select><small>Independent of output dimensions</small></label>
       <label class="switch-field"><span>Reference KV cache<small>Faster inference, more VRAM</small></span><input id="kv-cache" type="checkbox" role="switch" checked></label>
-      <label class="switch-field"><span>Separate output jobs<small>Normal generation only; series/grid use their own grouping</small></span><input id="separate-jobs" type="checkbox" role="switch"></label>
     </details>`;
     root.addEventListener("input", (event) => {
       if ((event.target as HTMLElement).id === "cfg")
@@ -68,7 +68,7 @@ export class SettingsPanel {
       width: Number(this.value("width")),
       height: Number(this.value("height")),
       num_inference_steps: this.turbo ? 8 : Number(this.value("steps")),
-      num_images: Number(this.value("image-count")),
+      num_images: this.runs.imageCount,
       seed: this.value("seed"),
       output_format: this.value("format") as Input["output_format"],
       quality: Number(this.value("quality")),
@@ -79,11 +79,11 @@ export class SettingsPanel {
     };
   }
   write(input: Input) {
+    this.runs.setImageCount(input.num_images);
     const fields: Record<string, unknown> = {
       width: input.width,
       height: input.height,
       steps: this.turbo ? 8 : input.num_inference_steps,
-      "image-count": input.num_images,
       seed: input.seed,
       format: input.output_format,
       quality: input.quality,
@@ -113,13 +113,16 @@ export class SettingsPanel {
     $<HTMLInputElement>("#steps", this.root).readOnly = enabled;
     $("#turbo-steps-note", this.root).hidden = !enabled;
   }
-  setImageCount(count: number) {
-    if (!Number.isInteger(count) || count < 1 || count > 4) return;
-    this.set("image-count", count);
-    this.change();
-  }
   separateJobs(): boolean {
-    return this.checked("separate-jobs");
+    return this.runs.separateJobs();
+  }
+  enableNegative() {
+    if (this.cfgValue() <= 1) {
+      this.importedCfg = undefined;
+      this.set("cfg", 2);
+      this.sync();
+      this.change();
+    }
   }
   private cfgValue(): number {
     return this.importedCfg ?? Number(this.value("cfg"));
@@ -138,6 +141,9 @@ export class SettingsPanel {
     $<HTMLInputElement>("#quality", this.root).disabled =
       this.value("format") === "png" ||
       (this.value("format") === "webp" && this.checked("transparent"));
-    $("#negative-field").hidden = this.cfgValue() <= 1;
+    const inactive = this.cfgValue() <= 1;
+    $("#negative-field").hidden = inactive;
+    $("#negative-enable").hidden = !inactive;
+    $("#negative-hint").hidden = !inactive;
   }
 }

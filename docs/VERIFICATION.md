@@ -1,5 +1,35 @@
 # Verification record
 
+## Unreleased UI usability changes — 2026-10-19
+
+- TypeScript checking and the production Vite build pass.
+- All **94 unit tests** and **47 Chromium Playwright scenarios** pass.
+- New browser coverage verifies empty Inpaint/Outpaint paste-to-source routing,
+  subsequent reference pastes, source selection from references/recent results,
+  source drops, consolidated run controls, explicit negative-prompt activation,
+  Generate submission guards and focused region-instruction commits.
+- Editor checks cover native text undo, mask undo/redo focus, zoom-scaled brush
+  outlines, painting coordinates after zoom, temporary Space-drag pan, and
+  shortcut suppression inside dialogs and during IME composition.
+- Existing `#validation` and `#generation-activity` checks pass. The validation
+  selector is preserved in the composer; active/unresolved activity is sticky
+  and terminal activity remains visible in normal flow.
+- Preview tests cover automatic export/reference encoding, immediate Apply
+  invalidation, latest-settings publication, serialized native encodes, stale
+  resource disposal, closing during encoding and recovery from invalid settings.
+- Desktop and phone screenshots were inspected; responsive checks cover the
+  desktop editor split, stacked controls and active mobile section navigation.
+  These checks use Chromium emulation, not physical devices or Safari.
+- Browser requests use mocked responses. No live inference or paid jobs were
+  submitted. Changes are confined to this WebUI; API/transport and generation
+  modules remain unchanged.
+
+Verification used the repository's TypeScript, Vite, Vitest and Playwright
+entry points through the available bundled Node runtime. Playwright uses
+`CHROMIUM_PATH`, system Chromium when available, or its installed Chromium.
+
+## Previous release record
+
 Latest UI release: **1.2.1**. Verified locally on 2026-10-18.
 Worker reference commit: `99c28f5d8a7fe0a5fa489ef4d619b1453198fccb`.
 

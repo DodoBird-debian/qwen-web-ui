@@ -89,4 +89,5 @@ export function bindRegions(root: HTMLElement, editor: MaskEditor) {
   }
   editor.onRegionsChange(render);
   render();
+  return render;
 }

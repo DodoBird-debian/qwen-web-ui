@@ -1,6 +1,8 @@
 import { EditPreparationCache } from "./resources/edit-preparation";
 import { GenerationActivity, finishedJob } from "./components/generation-activity";
 import { bindMobileNavigation } from "./components/mobile-navigation";
+import { WorkspaceEmptyState } from "./components/workspace-empty";
+import { bindShortcuts } from "./components/shortcuts";
 import { createTabSubmissionGuard } from "./generation/submission-guard";
 import { estimatePlan } from "./generation/estimates";
 import { bindRegions } from "./components/regions";
@@ -10,12 +12,13 @@ import {
   extendToRatio,
   type Expansion,
 } from "./editor/outpaint";
-import { compilePrompt, roleInstruction } from "./references/prompt-compiler";
+import { compilePrompt, referenceUses, roleInstruction } from "./references/prompt-compiler";
 import { bindMentions } from "./references/mentions";
 import { RunControls } from "./components/run-controls";
 import { SeriesRunner } from "./generation/runner";
 import { planSeries } from "./generation/plan";
 import {
+  getJob,
   put,
   trimHistory,
   setPersistence,
@@ -29,7 +32,7 @@ import { EndpointConnections, MODEL_LABELS, type ModelVariant } from "./api/endp
 import { normalizeProfile } from "./estimates/profile";
 import { bindGPUConfig, syncGPUInputs } from "./components/gpu-config";
 import { loadProfile, saveProfile } from "./storage/db";
-import { bindProjects } from "./components/projects";
+import { bindProjects, type ReusedInpaint } from "./components/projects";
 import "./styles.css";
 import { layout } from "./components/layout";
 import { SettingsPanel } from "./components/settings";
@@ -55,7 +58,6 @@ import {
   validateReferences,
   fromBase64,
   canvasBlob,
-  inspectImage,
   type Reference,
 } from "./references/images";
 import {
@@ -99,10 +101,16 @@ let ready:
     }
   | undefined;
 const preparationCache = new EditPreparationCache();
+let reusedInpaint: { edit: ReusedInpaint; guides: Blob[] } | undefined;
+const reusedInpaintNotice = node("p", "notice");
+reusedInpaintNotice.id = "reused-inpaint";
+reusedInpaintNotice.hidden = true;
+$("#validation").after(reusedInpaintNotice);
 let historyLimit = 12;
 const prompt = $<HTMLTextAreaElement>("#prompt"),
   negative = $<HTMLTextAreaElement>("#negative-prompt");
-const settings = new SettingsPanel($("#settings"), scheduleRefresh);
+const runControls = new RunControls($("#run-controls"), scheduleRefresh);
+const settings = new SettingsPanel($("#settings"), scheduleRefresh, runControls);
 const editor = new MaskEditor($("#canvas-viewport"), scheduleRefresh);
 const results = new ResultsPanel($("#results"));
 let runner: SeriesRunner | undefined;
@@ -111,8 +119,11 @@ let runRenderKey = "";
 let displayedJob = "";
 let viewedJob: SavedJob | undefined;
 const imageHistory = new ImageHistory($("#image-history"), viewHistoryJob);
-const runControls = new RunControls($("#run-controls"), scheduleRefresh, count => settings.setImageCount(count));
-bindRegions($("#region-panel"), editor);
+const emptyState = new WorkspaceEmptyState({
+  browse: source => $(source ? "#source-upload" : "#reference-upload").click(),
+  choose: chooseSource,
+});
+const renderRegions = bindRegions($("#region-panel"), editor);
 const submissionGuard = createTabSubmissionGuard();
 const submissionNotice = node("div", "notice submission-notice");
 $("#job-status").after(submissionNotice);
@@ -268,7 +279,9 @@ function storageNote() {
   imageHistory.note();
 }
 $("#persist-browser").addEventListener("change", async () => {
-  const enabled = $<HTMLInputElement>("#persist-browser").checked;
+  const toggle = $<HTMLInputElement>("#persist-browser");
+  const enabled = toggle.checked;
+  toggle.disabled = true;
   try {
     await setPersistence(enabled);
     if (enabled) {
@@ -277,15 +290,19 @@ $("#persist-browser").addEventListener("change", async () => {
     }
     localStorage.setItem("qwen-storage-enabled", String(enabled));
     storageNote();
+    await imageHistory.restore();
+    renderMode();
     toast(
       enabled
         ? "Browser persistence enabled. Existing saved projects/history are available."
         : "Session mode enabled. Previously saved data has not been deleted.",
     );
   } catch (e) {
-    $<HTMLInputElement>("#persist-browser").checked = persistenceEnabled();
+    toggle.checked = persistenceEnabled();
     storageNote();
     toast(String(e), true);
+  } finally {
+    toggle.disabled = false;
   }
 });
 function resultActions() {
@@ -398,17 +415,15 @@ function ordered() {
 }
 function rebind(previous: { id: string }[]) {
   const guideInstruction = $<HTMLTextAreaElement>("#inpaint-instruction");
-  guideInstruction.value = remapEditInstruction(
-    guideInstruction.value,
-    previous.filter(
-      (r) => !r.id.startsWith("source-") && !r.id.startsWith("guide-"),
-    ),
-    references,
+  const previousUsers = previous.filter(
+    r => !r.id.startsWith("source-") && !r.id.startsWith("guide-"),
   );
+  guideInstruction.value = remapEditInstruction(guideInstruction.value, previousUsers, references);
   prompt.value = remapTags(prompt.value, previous, ordered());
   negative.value = remapTags(negative.value, previous, ordered());
   for (const region of editor.regions)
-    region.instruction = remapTags(region.instruction, previous, ordered());
+    region.instruction = remapEditInstruction(region.instruction, previousUsers, references);
+  renderRegions();
 }
 function setMode(value: Mode) {
   const previous = ordered();
@@ -420,6 +435,7 @@ function setMode(value: Mode) {
   scheduleRefresh();
 }
 function renderMode() {
+  emptyState.update(mode, !!expansion(), !!references.length, !!references.length || imageHistory.hasImages);
   document
     .querySelectorAll<HTMLElement>("[data-mode]")
     .forEach((element) =>
@@ -454,6 +470,8 @@ function renderMode() {
     "active",
     mode === "inpaint" && $<HTMLInputElement>("#outpaint-enabled").checked,
   );
+  document.querySelectorAll<HTMLElement>(".modes .mode").forEach(element =>
+    element.setAttribute("aria-pressed", String(element.classList.contains("active"))));
   const showingResults =
     (!!viewedJob?.results?.length || !!runner || !!manager.current?.results?.length) &&
     (mode !== "inpaint" || workspaceView === "results");
@@ -462,8 +480,9 @@ function renderMode() {
     "workspace-editing",
     mode === "inpaint" && !showingResults,
   );
+  $(".workspace").classList.toggle("workspace-extending", !!expansion());
   for (const id of ["editor-tools", "inpaint-options", "edit-panels"])
-    $("#" + id).hidden = mode !== "inpaint" || showingResults;
+    $("#" + id).hidden = mode !== "inpaint" || showingResults || !editor.loaded;
   $("#canvas-viewport").hidden =
     mode !== "inpaint" || !editor.loaded || showingResults;
   $("#empty-state").hidden =
@@ -522,6 +541,11 @@ function viewHistoryJob(record: SavedJob) {
   $("#results").scrollIntoView({ block: "start" });
 }
 
+function promptUses(index: number) {
+  const bindings = referenceBindings();
+  return referenceUses(prompt.value, bindings, index).length +
+    referenceUses(negative.value, bindings, index).length;
+}
 function renderRefs() {
   const offset = mode === "inpaint" ? 2 : 0;
   $("#reference-count").textContent = `${references.length + offset} / 10`;
@@ -544,12 +568,7 @@ function renderRefs() {
       renderRefs();
       scheduleRefresh();
     },
-    source: async (index) => {
-      const previous = ordered();
-      await editor.load(references[index].blob);
-      rebind(previous);
-      setMode("inpaint");
-    },
+    source: (index) => loadSource(references[index].blob, references[index].name),
     compress: (index) => compressionDialog(index),
     update: (index, patch) => {
       Object.assign(references[index], patch);
@@ -566,17 +585,18 @@ function renderRefs() {
           ) +
           "\n",
       ),
-    uses: (index) =>
-      [
-        ...(prompt.value + " " + negative.value).matchAll(/<image(\d+)>/g),
-      ].filter((m) => Number(m[1]) === index + offset + 1).length,
-    find: (index) => {
-      const tag = `<image${index + offset + 1}>`;
-      const position = prompt.value.indexOf(tag);
-      if (position >= 0) {
-        prompt.focus();
-        prompt.setSelectionRange(position, position + tag.length);
-      } else toast("This reference is not mentioned in the main prompt.");
+    uses: index => promptUses(index + offset),
+    find: index => {
+      const bindings = referenceBindings();
+      for (const area of [prompt, negative]) {
+        const [range] = referenceUses(area.value, bindings, index + offset);
+        if (range) {
+          area.focus();
+          area.setSelectionRange(range.start, range.end);
+          return;
+        }
+      }
+      toast("This reference is not mentioned in the prompts.");
     },
   });
 }
@@ -627,12 +647,33 @@ dropZone.addEventListener("drop", (event) => {
   );
 });
 document.addEventListener("paste", (event) => {
+  if (document.querySelector("dialog[open]")) return;
   const files = Array.from(event.clipboardData?.files || []);
   if (files.length) {
     event.preventDefault();
-    addFiles(files).catch((error) => toast(String(error), true));
+    receiveWorkspaceFiles(files).catch((error) => toast(String(error), true));
   }
 });
+async function receiveWorkspaceFiles(files: File[]) {
+  if (mode === "inpaint" && !editor.loaded && files.length) {
+    const [source, ...additional] = files;
+    await loadSource(source, source.name);
+    if (additional.length) await addFiles(additional);
+  } else await addFiles(files);
+}
+for (const name of ["dragenter", "dragover"])
+  $("#empty-state").addEventListener(name, event => {
+    event.preventDefault();
+    $("#empty-state").classList.add("dragging");
+  });
+for (const name of ["dragleave", "drop"])
+  $("#empty-state").addEventListener(name, event => {
+    event.preventDefault();
+    $("#empty-state").classList.remove("dragging");
+    if (name === "drop")
+      receiveWorkspaceFiles(Array.from((event as DragEvent).dataTransfer?.files || []))
+        .catch(error => toast(String(error), true));
+  });
 
 function compressionDialog(index: number) {
   openReferencePreparation(
@@ -659,6 +700,18 @@ function rawInput(): Input {
   const input: Input = { ...settings.read(), prompt: prompt.value, images: [] };
   if (input.true_cfg_scale > 1) input.negative_prompt = negative.value;
   return input;
+}
+function setReusedInpaint(edit?: ReusedInpaint) {
+  reusedInpaint = edit && references.length >= 2
+    ? { edit, guides: [references[0].blob, references[1].blob] }
+    : undefined;
+}
+function matchingReusedInpaint({ width, height }: Pick<Input, "width" | "height">) {
+  if (mode !== "edit" || !reusedInpaint) return;
+  const { edit, guides } = reusedInpaint;
+  const transform = edit.snapshot.transform;
+  if (width === transform.width && height === transform.height &&
+      guides.every((blob, index) => references[index]?.blob === blob)) return edit;
 }
 function renderSubmissionGuard() {
   renderActivity();
@@ -703,16 +756,12 @@ function scheduleRefresh() {
 async function refresh() {
   renderMode();
   renderSubmissionGuard();
-  $<HTMLInputElement>("#separate-jobs").disabled =
-    runControls.kind !== "single";
-  $<HTMLSelectElement>("#image-count").disabled = runControls.kind !== "single";
   syncGPUInputs(profile, workerOffload());
   for (const item of document.querySelectorAll<HTMLElement>(
     "[data-reference-uses]",
   )) {
-    const index =
-      ordered().findIndex((r) => r.id === item.dataset.referenceUses) + 1;
-    item.textContent = `${[...(prompt.value + " " + negative.value).matchAll(/<image(\d+)>/g)].filter((m) => Number(m[1]) === index).length} prompt uses`;
+    const index = ordered().findIndex(r => r.id === item.dataset.referenceUses);
+    item.textContent = `${promptUses(index)} prompt uses`;
   }
   const requestVersion = version,
     raw = rawInput();
@@ -721,6 +770,16 @@ async function refresh() {
   let actualRefs = [...references],
     inpaint: PreparedInpaint["snapshot"] | undefined;
   let failure = "";
+  const savedEdit = matchingReusedInpaint(raw);
+  reusedInpaintNotice.hidden = !reusedInpaint || mode !== "edit";
+  if (!reusedInpaintNotice.hidden) {
+    reusedInpaintNotice.textContent = savedEdit
+      ? "Generation will apply the saved mask and placement." +
+        (endpoint && savedEdit.endpoint !== endpoint
+          ? ` This request uses ${endpoint}. The saved edit used ${savedEdit.endpoint}.` : "")
+      : "The saved mask needs the original first two references and canvas dimensions. Generation will return a raw image.";
+  }
+  inpaint = savedEdit?.snapshot;
   if (mode === "inpaint") {
     try {
       if (!editor.loaded)
@@ -764,7 +823,7 @@ async function refresh() {
   if (requestVersion !== version) return;
   renderGuides(
     $("#inpaint-guides"),
-    inpaint ? actualRefs.slice(0, 2) : [],
+    mode === "inpaint" && inpaint ? actualRefs.slice(0, 2) : [],
     (index) => insertAtCaret(prompt, `<image${index + 1}>`),
   );
   raw.images = actualRefs.map((reference) => reference.base64);
@@ -781,7 +840,7 @@ async function refresh() {
   const body = json({
     input: {
       ...raw,
-      seed: /^-?\d+$/.test(raw.seed) ? new LosslessNumber(raw.seed) : raw.seed,
+      seed: /^-?\d+$/.test(raw.seed) ? new LosslessNumber(BigInt(raw.seed).toString()) : raw.seed,
     },
   });
   const bytes = new TextEncoder().encode(body).length;
@@ -856,6 +915,10 @@ async function refresh() {
 }
 prompt.addEventListener("input", scheduleRefresh);
 negative.addEventListener("input", scheduleRefresh);
+$("#negative-enable").addEventListener("click", () => {
+  settings.enableNegative();
+  negative.focus();
+});
 const mentions = bindMentions(
   [prompt, negative],
   $("#tag-suggestions"),
@@ -886,32 +949,99 @@ for (const element of document.querySelectorAll<HTMLElement>("[data-example]"))
   });
 $("#reset-settings").addEventListener("click", () => settings.reset());
 
+function selectTool(tool: Tool) {
+  if (editor.drawing) return;
+  editor.tool = tool;
+  document
+    .querySelectorAll<HTMLElement>("[data-tool]")
+    .forEach((item) => item.classList.toggle("active", item.dataset.tool === tool));
+  editor.updateCursor();
+}
 for (const element of document.querySelectorAll<HTMLElement>("[data-tool]"))
-  element.addEventListener("click", () => {
-    editor.tool = element.dataset.tool as Tool;
-    document
-      .querySelectorAll<HTMLElement>("[data-tool]")
-      .forEach((item) => item.classList.toggle("active", item === element));
-  });
+  element.addEventListener("click", () => selectTool(element.dataset.tool as Tool));
 $<HTMLInputElement>("#brush-size").addEventListener("input", (event) => {
   editor.brushSize = Number((event.target as HTMLInputElement).value);
   $("#brush-output").textContent = String(editor.brushSize);
+  editor.updateCursor();
+});
+$("#canvas-viewport").addEventListener("editorzoom", event => {
+  const select = $<HTMLSelectElement>("#canvas-zoom");
+  select.querySelector("[data-custom-zoom]")?.remove();
+  const value = String((event as CustomEvent<number>).detail);
+  if (![...select.options].some(option => option.value === value)) {
+    const option = node("option", "", `${Math.round(Number(value) * 100)}%`);
+    option.value = value;
+    option.dataset.customZoom = "true";
+    select.append(option);
+  }
+  select.value = value;
 });
 $<HTMLSelectElement>("#canvas-zoom").addEventListener("change", (event) =>
   editor.setZoom(Number((event.target as HTMLSelectElement).value)),
 );
 for (const action of ["undo", "redo", "clear", "invert"] as const)
   $(`#mask-${action}`).addEventListener("click", () => editor[action]());
+bindShortcuts({
+  editor,
+  selectTool,
+  selectMode: index => {
+    const selectors = ['[data-mode="generate"]', '[data-mode="edit"]', '[data-mode="inpaint"]', '#open-outpaint'];
+    $(selectors[index]).click();
+  },
+  resizeBrush: delta => {
+    const size = $<HTMLInputElement>("#brush-size");
+    size.value = String(Math.max(2, Math.min(500, editor.brushSize + delta)));
+    size.dispatchEvent(new Event("input", { bubbles: true }));
+  },
+  generate: async () => {
+    if (working || submitting || submissionGuard.pending) return;
+    // Commit region instruction change handlers before compiling the request.
+    (document.activeElement as HTMLElement | null)?.blur();
+    clearTimeout(refreshTimer);
+    await refresh();
+    $<HTMLButtonElement>("#generate").click();
+  },
+});
 async function loadSource(blob: Blob, name = "Source") {
+  const selection = editor.beginSourceLoad();
   const reference = await loadReference(blob, name);
   try {
     const previous = ordered();
-    await editor.load(reference.blob);
+    if (!await editor.load(reference.blob, undefined, selection)) return;
+    $<HTMLSelectElement>("#canvas-zoom").value = "1";
     rebind(previous);
     setMode("inpaint");
   } finally {
     releaseReference(reference);
   }
+}
+async function chooseSource() {
+  const body = dialog("Choose an edit source");
+  const grid = node("div", "source-picker");
+  body.append(grid);
+  const urls: string[] = [];
+  const entries = [
+    ...references.map(ref => ({ blob: ref.blob, name: ref.alias || ref.name })),
+    ...await imageHistory.sources(),
+  ];
+  if (!grid.isConnected || !$("#content-dialog").hasAttribute("open")) return;
+  for (const entry of entries) {
+    const pick = button(entry.name, async () => {
+      await loadSource(entry.blob, entry.name);
+      $<HTMLDialogElement>("#content-dialog").close();
+    });
+    const image = node("img");
+    image.alt = "";
+    image.loading = "lazy";
+    image.src = URL.createObjectURL(entry.blob);
+    urls.push(image.src);
+    pick.prepend(image);
+    grid.append(pick);
+  }
+  grid.before(node("p", "subtle", "References and recent results"));
+  $<HTMLDialogElement>("#content-dialog").addEventListener("close", () => {
+    urls.forEach(url => URL.revokeObjectURL(url));
+  }, { once: true });
 }
 $<HTMLInputElement>("#source-upload").addEventListener(
   "change",
@@ -931,10 +1061,7 @@ $<HTMLInputElement>("#mask-upload").addEventListener(
   async (event) => {
     const input = event.target as HTMLInputElement;
     try {
-      if (input.files?.[0]) {
-        inspectImage(await input.files[0].arrayBuffer());
-        await editor.importMask(input.files[0]);
-      }
+      if (input.files?.[0]) await editor.importMask(input.files[0]);
     } catch (error) {
       toast(String(error), true);
     } finally {
@@ -980,6 +1107,16 @@ bindGPUConfig({
 });
 bindEstimatorControls(scheduleRefresh);
 
+function submissionPlan(input: Input) {
+  const negativePrompt = runControls.kind === "grid"
+    ? compilePrompt(negative.value, referenceBindings())
+    : "";
+  return runControls.plan(input, negativePrompt) ??
+    (settings.separateJobs() && input.num_images > 1
+      ? planSeries(input, input.num_images, 1)
+      : undefined);
+}
+
 $("#generate").addEventListener("click", async () => {
   if (!ready || working || submissionGuard.pending) return;
   if (!hasConnection()) {
@@ -989,21 +1126,12 @@ $("#generate").addEventListener("click", async () => {
   }
   const frozen = ready,
     transport = client(),
-    frozenEndpoint = endpoint,
-    separate = settings.separateJobs();
+    frozenEndpoint = endpoint;
   viewedJob = undefined;
   working = true;
   $<HTMLButtonElement>("#generate").disabled = true;
   try {
-    const negativePrompt =
-      runControls.kind === "grid" || frozen.input.true_cfg_scale > 1
-        ? compilePrompt(negative.value, referenceBindings())
-        : "";
-    const plan =
-      runControls.plan(frozen.input, negativePrompt) ||
-      (separate && frozen.input.num_images > 1
-        ? planSeries(frozen.input, frozen.input.num_images, 1)
-        : undefined);
+    const plan = submissionPlan(frozen.input);
     if (plan) {
       runRenderKey = "";
       const identity = ++runId;
@@ -1096,18 +1224,37 @@ async function resume(record: SavedJob) {
     toast("Stop current polling before resuming another job.");
     return;
   }
-  let transport: RunpodClient;
-  try {
-    transport = connections.client(record.endpoint);
-  } catch {
-    refreshConnection(record.endpoint);
-    $<HTMLDialogElement>("#connection-dialog").showModal();
-    toast("Connect to this job’s endpoint, then resume.");
-    return;
-  }
   working = true;
   scheduleRefresh();
   try {
+    await initialized;
+    const saved = await getJob(record.id);
+    if (saved?.results?.length) {
+      submissionGuard.completed(saved.endpoint, saved.runpodId);
+      if (manager.current?.id === saved.id) {
+        manager.current = saved;
+        showJob(saved);
+      }
+      viewHistoryJob(saved);
+      return;
+    }
+    // An in-memory job can have newer status or cancellation state.
+    const current = manager.current?.id === record.id ? manager.current : undefined;
+    record = current?.input.prompt ? current : saved ?? current ?? record;
+    let transport: RunpodClient;
+    try {
+      transport = connections.client(record.endpoint);
+    } catch {
+      refreshConnection(record.endpoint);
+      $<HTMLDialogElement>("#connection-dialog").showModal();
+      toast("Connect to this job’s endpoint, then resume.");
+      return;
+    }
+    viewedJob = undefined;
+    if (runner && !runner.jobs.some(job => job.id === record.id)) {
+      runner = undefined;
+      $("#run-status").hidden = true;
+    }
     await manager.follow(transport, record);
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError"))
@@ -1115,7 +1262,6 @@ async function resume(record: SavedJob) {
   } finally {
     working = false;
     scheduleRefresh();
-    showJob(record);
   }
 }
 $("#cancel-job").addEventListener("click", async () => {
@@ -1127,7 +1273,7 @@ $("#cancel-job").addEventListener("click", async () => {
   }
 });
 
-async function replaceInput(input: Input) {
+async function replaceInput(input: Input, savedEdit?: ReusedInpaint) {
   const loaded: Reference[] = [];
   try {
     for (const [index, image] of input.images.entries())
@@ -1139,7 +1285,11 @@ async function replaceInput(input: Input) {
   }
   references.forEach(releaseReference);
   references = loaded;
+  editor.unload();
+  $<HTMLInputElement>("#outpaint-enabled").checked = false;
   mode = loaded.length ? "edit" : "generate";
+  setReusedInpaint(savedEdit);
+  runControls.normal();
   settings.write(input);
   prompt.value = input.prompt;
   negative.value = input.negative_prompt || "";
@@ -1148,11 +1298,10 @@ async function replaceInput(input: Input) {
   scheduleRefresh();
 }
 async function reuse(record: SavedJob, seed?: string) {
-  runControls.normal();
-  await replaceInput({
-    ...record.input,
-    ...(seed ? { seed, num_images: 1 } : {}),
-  });
+  await replaceInput(
+    { ...record.input, ...(seed ? { seed, num_images: 1 } : {}) },
+    record.inpaint ? { snapshot: record.inpaint, endpoint: record.endpoint } : undefined,
+  );
   toast("Request settings and references restored.");
 }
 $("#import-request").addEventListener("click", () =>
@@ -1183,10 +1332,20 @@ $("#export-request").addEventListener("click", async () => {
     toast("Complete a valid request before exporting.", true);
     return;
   }
-  download(
-    new Blob([ready.body], { type: "application/json" }),
-    "qwen-request.json",
-  );
+  const plan = submissionPlan(ready.input);
+  const save = (body: string, filename: string) =>
+    download(new Blob([body], { type: "application/json" }), filename);
+  if (!plan || plan.requests.length === 1) {
+    save(plan ? plan.requests[0].prepared.body : ready.body, "qwen-request.json");
+    return;
+  }
+  const body = dialog("Export a planned request");
+  if (ready.input.seed === "-1") body.append(node("p", "notice",
+    `Starting seed for this export: ${plan.baseSeed}. Generate will choose a new random starting seed.`));
+  for (const [index, request] of plan.requests.entries()) {
+    body.append(button(`Download request ${index + 1} · ${request.cells.length} images`,
+      () => save(request.prepared.body, `qwen-request-${index + 1}.json`)));
+  }
 });
 $("#request-preview").addEventListener("click", async () => {
   await refresh();
@@ -1194,57 +1353,72 @@ $("#request-preview").addEventListener("click", async () => {
     toast("Complete a valid request to preview it.", true);
     return;
   }
-  const body = dialog("Frozen API request"),
-    text = node("pre", "json-preview");
-  text.textContent = json(
-    {
+  const request = ready;
+  const random = request.input.seed === "-1";
+  const plan = submissionPlan(random ? { ...request.input, seed: "0" } : request.input);
+  const body = dialog("API request preview");
+  const notice = node("p", "notice");
+  const text = node("pre", "json-preview");
+  const render = (index: number) => {
+    const planned = plan?.requests[index];
+    const input = planned
+      ? { ...planned.cells[0].input, num_images: planned.cells.length }
+      : request.input;
+    const bytes = planned?.bytes ?? request.bytes;
+    notice.textContent = plan && random
+      ? "Example body. Random starting seeds resolve at submission."
+      : `Submitted body: ${bytes.toLocaleString()} bytes. Base64 is abbreviated here.`;
+    text.textContent = json({
       input: {
-        ...ready.input,
-        seed: new LosslessNumber(ready.input.seed),
-        images: ready.input.images.map(
-          (value, index) =>
-            `[image${index + 1}: ${value.length.toLocaleString()} base64 characters]`,
-        ),
+        ...input,
+        seed: new LosslessNumber(input.seed),
+        images: input.images.map((value, i) =>
+          `[image${i + 1}: ${value.length.toLocaleString()} base64 characters]`),
       },
-    },
-    true,
-  );
-  body.append(
-    node(
-      "p",
-      "notice",
-      `Exact submitted body: ${ready.bytes.toLocaleString()} bytes. Base64 is abbreviated in this preview only.`,
-    ),
-    text,
-  );
+    }, true);
+  };
+  if (plan) {
+    const label = node("label", "field", `${plan.cells.length} images across ${plan.requests.length} requests`);
+    const select = node("select");
+    plan.requests.forEach(({ cells }, index) => {
+      const option = node("option", "", `Request ${index + 1} · ${cells.length} image${cells.length === 1 ? "" : "s"}`);
+      option.value = String(index);
+      select.append(option);
+    });
+    select.addEventListener("change", () => render(Number(select.value)));
+    label.append(select);
+    body.append(label);
+  }
+  render(0);
+  body.append(notice, text);
 });
 
 bindProjects({
   dialog,
-  capture: async () => ({
-    schemaVersion: 2 as const,
-    mode,
-    input: rawInput(),
-    references: references.map(({ id, name, blob, alias, role }) => ({
-      id,
-      name,
-      blob,
-      alias,
-      role,
-    })),
-    regions: editor.loaded ? await editor.saveRegions() : undefined,
-    expansion: expansion(),
-    ...(editor.loaded
-      ? {
-          source: await canvasBlob(editor.source),
-          mask: await canvasBlob(editor.combinedMask()),
-        }
-      : {}),
-    crop: $<HTMLInputElement>("#crop-mask").checked,
-    padding: $<HTMLInputElement>("#crop-padding").value,
-    feather: $<HTMLInputElement>("#mask-feather").value,
-    instruction: $<HTMLTextAreaElement>("#inpaint-instruction").value,
-  }),
+  capture: async () => {
+    const input = rawInput();
+    const snapshot = {
+      schemaVersion: 2 as const,
+      mode,
+      input,
+      reusedInpaint: matchingReusedInpaint(input),
+      references: references.map(({ id, name, blob, alias, role }) => ({
+        id, name, blob, alias, role,
+      })),
+      expansion: expansion(),
+      crop: $<HTMLInputElement>("#crop-mask").checked,
+      padding: $<HTMLInputElement>("#crop-padding").value,
+      feather: $<HTMLInputElement>("#mask-feather").value,
+      instruction: $<HTMLTextAreaElement>("#inpaint-instruction").value,
+    };
+    if (!editor.loaded) return snapshot;
+    const [source, mask, regions] = await Promise.all([
+      canvasBlob(editor.source),
+      canvasBlob(editor.combinedMask()),
+      editor.saveRegions(),
+    ]);
+    return { ...snapshot, source, mask, regions };
+  },
   restore: async (project) => {
     const loaded: Reference[] = [];
     try {
@@ -1261,13 +1435,17 @@ bindProjects({
     references.forEach(releaseReference);
     references = loaded;
     mode = project.mode;
+    setReusedInpaint(project.reusedInpaint);
+    runControls.normal();
     settings.write(project.input);
     prompt.value = project.input.prompt;
     negative.value = project.input.negative_prompt || "";
+    editor.unload();
     if (project.source) {
       await editor.load(project.source, project.mask);
       if (project.regions) await editor.loadRegions(project.regions);
     }
+    $<HTMLSelectElement>("#canvas-zoom").value = "1";
     $<HTMLInputElement>("#outpaint-enabled").checked = !!project.expansion;
     if (project.expansion)
       for (const side of ["left", "right", "top", "bottom", "seam"] as const)
@@ -1277,9 +1455,8 @@ bindProjects({
     $<HTMLInputElement>("#crop-mask").checked = project.crop;
     $<HTMLInputElement>("#crop-padding").value = project.padding;
     $<HTMLInputElement>("#mask-feather").value = project.feather;
-    if (typeof project.instruction === "string")
-      $<HTMLTextAreaElement>("#inpaint-instruction").value =
-        project.instruction;
+    const instruction = $<HTMLTextAreaElement>("#inpaint-instruction");
+    instruction.value = project.instruction ?? instruction.defaultValue;
     renderMode();
     renderRefs();
     scheduleRefresh();
@@ -1289,7 +1466,6 @@ bindProjects({
 bindHistory({
   dialog,
   endpoint: () => endpoint,
-  requireConnection: client,
   resume,
   reuse,
   view: viewHistoryJob,
@@ -1334,24 +1510,32 @@ async function initialize() {
     $("#connection-dot").classList.add("connected");
   }
   manager.setHistoryLimit(historyLimit);
+  const pending = submissionGuard.pending;
+  if (pending?.id) {
+    const id = `${pending.endpoint}:${pending.id}`;
+    let saved: SavedJob | undefined;
+    try {
+      saved = await getJob(id);
+    } catch {
+      toast("The saved job could not be loaded.", true);
+    }
+    manager.current = saved ?? {
+      id,
+      runpodId: pending.id,
+      endpoint: pending.endpoint,
+      created: pending.created,
+      status: "IN_QUEUE",
+      input: { ...DEFAULTS },
+    };
+    if (saved && finishedJob(saved))
+      submissionGuard.completed(pending.endpoint, pending.id);
+    showJob(manager.current);
+  }
   try { await imageHistory.restore(); } catch { toast("Saved image history could not be loaded.", true); }
   refreshConnection();
   renderRefs();
   renderMode();
   scheduleRefresh();
 }
-initialize();
-
-if (submissionGuard.pending?.id) {
-  const pending = submissionGuard.pending;
-  manager.current = {
-    id: `${pending.endpoint}:${pending.id}`,
-    runpodId: pending.id!,
-    endpoint: pending.endpoint,
-    created: pending.created,
-    status: "IN_QUEUE",
-    input: { ...DEFAULTS, prompt: "", images: [] },
-  };
-  showJob(manager.current);
-}
+const initialized = initialize();
 renderSubmissionGuard();

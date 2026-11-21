@@ -47,6 +47,8 @@ export function renderReferences(
     uses: (index: number) => number;
   },
 ) {
+  const expanded = new Set([...root.querySelectorAll<HTMLDetailsElement>("details[open]")]
+    .map(details => details.closest<HTMLElement>("[data-reference-id]")?.dataset.referenceId));
   root.replaceChildren();
   references.forEach((reference, index) => {
     const item = node("article", "reference-card"),
@@ -68,7 +70,7 @@ export function renderReferences(
     const role = node("select"); role.setAttribute("aria-label", `Reference ${index + 1} role`);
     for (const value of ["", "person", "product", "style", "background", "clothing", "pose"]) { const option=node("option", "", value || "Reference role"); option.value=value; role.append(option); }
     role.value=reference.role || ""; role.onchange=()=>actions.update(index,{role:role.value});
-    const uses=node("small", "", `${actions.uses(index)} prompt uses`); uses.dataset.referenceUses=reference.id; main.append(alias, role, uses);
+    const uses=node("small", "", `${actions.uses(index)} prompt uses`); uses.dataset.referenceUses=reference.id; main.append(alias, uses);
     const tools = node("div", "reference-tools");
     const up = button("↑", () => actions.move(index, -1), "icon-button"),
       down = button("↓", () => actions.move(index, 1), "icon-button");
@@ -78,18 +80,25 @@ export function renderReferences(
     down.title = "Move reference down";
     tools.append(
       button("Insert ↗", () => actions.insert(index), "text-button"),
-      up,
-      down,
+      button("Use as source", () => actions.source(index), "text-button"),
       button("×", () => actions.remove(index), "icon-button"),
     );
+    tools.lastElementChild!.setAttribute("aria-label", `Remove reference ${index + 1}`);
+    const details = node("details", "reference-details");
+    details.open = expanded.has(reference.id);
+    const summary = node("summary", "text-button", "More actions");
+    summary.setAttribute("aria-label", `More actions for reference ${index + 1}`);
     const extra = node("div", "reference-extra");
     extra.append(
+      role,
+      up,
+      down,
       button("Resize / encode", () => actions.compress(index), "text-button"),
-      button("Use as source", () => actions.source(index), "text-button"),
       button("Insert instruction", () => actions.helper(index), "text-button"),
       button("Find uses", () => actions.find(index), "text-button"),
     );
-    item.append(image, main, tools, extra);
+    details.append(summary, extra);
+    item.append(image, main, tools, details);
     root.append(item);
   });
 }

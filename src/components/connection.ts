@@ -16,7 +16,8 @@ export function bindConnection(context: ConnectionContext) {
   let selected: ModelVariant = connections.model;
   const keyForDraft = () => {
     const id = endpointId($<HTMLInputElement>("#endpoint-id").value);
-    return $<HTMLInputElement>("#api-key").value || (draft[selected].endpoint === id ? draft[selected].key : "");
+    return $<HTMLInputElement>("#api-key").value ||
+      (!connections.serverEndpoint(id) && draft[selected].endpoint === id ? draft[selected].key : "");
   };
   const syncKeyRequirement = () => {
     let endpoint = "";
@@ -25,7 +26,7 @@ export function bindConnection(context: ConnectionContext) {
     const savedKey = draft?.[selected].endpoint === endpoint && !!draft[selected].key;
     const input = $<HTMLInputElement>("#api-key");
     input.required = !serverDefault && !savedKey;
-    input.placeholder = savedKey ? "Use this model's saved key, or enter another" : serverDefault ? "Use server default, or enter another key" : "rpa_…";
+    input.placeholder = serverDefault ? "Use server default, or enter another key" : savedKey ? "Use this model's saved key, or enter another" : "rpa_…";
     $("#connection-dialog .notice").textContent = serverDefault
       ? "Leave the key empty to use this endpoint's server default. An entered key stays in this tab's memory."
       : "The key stays in this tab's memory. Re-enter it after reload. Nginx forwards requests to RunPod.";

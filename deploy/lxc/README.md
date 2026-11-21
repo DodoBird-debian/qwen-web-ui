@@ -100,8 +100,9 @@ existing site authentication when sharing it. Automation
 manages `server.conf`, `http.conf` and `runtime.env`; existing `site-auth.conf`
 and non-secret GPU/history preferences are preserved.
 
-Source/build workspaces remain under `/opt/qwen-image-studio/source/`; static
-releases remain under `/opt/qwen-image-studio/releases/`. SSH host keys are pinned
+Each deployment removes its temporary source and build directory after success or failure.
+Activation is serialized, and successful activation retains the active and immediately
+preceding automated releases in `/opt/qwen-image-studio/releases/`. SSH host keys are pinned
 in ignored `.deploy/known_hosts`: new hosts are accepted once, and changed host
 keys stop the connection. Deployment output does not include passwords.
 

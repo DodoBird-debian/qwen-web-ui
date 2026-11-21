@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Place validation beside Generate and keep only active/unresolved activity sticky.
+- Add mode-aware source loading, paste-to-source for empty edit canvases, reference/result source selection, collapsible history and responsive editor panels.
+- Consolidate image/request controls, show active presets and explicitly enable negative prompts with CFG 2.
+- Add guarded generation/mode/editor shortcuts, temporary pan, pointer-anchored zoom and a scaled brush outline.
+- Compact reference actions, automatically preview export/reference encoding with stale-result cleanup, and indicate the active mobile section.
 - Use model CPU offload for the configured server worker, overriding stale browser offload profiles while preserving capacity and safety.
 - Match worker VRAM tensors and phase weight placement, expose offload beside capacity/safety, and show the peak breakdown.
 - Move batch planning above settings, add image-count shortcuts and request previews/progress, and verify ten images dispatch as 4+4+2.

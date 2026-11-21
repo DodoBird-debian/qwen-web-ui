@@ -73,6 +73,37 @@ See [LXC installation, updates and rollback](deploy/lxc/README.md).
   with independent inspection/download/export controls. Source comparison, metadata,
   seed reuse and sending results back to references/inpainting are available.
 
+### Workspace navigation and shortcuts
+
+Validation messages appear beside the Generate button. Active/unresolved jobs
+keep their activity banner sticky; terminal messages stay available without
+covering results. Image history can be collapsed with its heading button.
+
+Inpaint and Outpaint start with a source-loading card. Drop or browse an image,
+paste an image, or choose a reference/recent result. Pasting with an empty edit
+canvas loads the source; subsequent pastes add references. Image edit and Generate
+pastes add references. Outpaint remains selected when a source is loaded.
+
+Images/request and separate-output controls live in **Images & requests**.
+Negative prompt has an explicit **enable with CFG 2** action; it preserves any
+existing negative text and updates the local memory estimate. Secondary reference
+actions are under **More actions**. Reference preparation and export automatically
+encode a preview after changes; Apply/Download is enabled only for current settings.
+
+- **Ctrl/Cmd+Enter:** Generate using the same validation and submission guard as
+  the button. Editor instructions are committed first.
+- **Alt+1–4:** Generate, Image edit, Inpaint, Outpaint, outside text-entry fields.
+- With the canvas focused: **B/E/R/O/H** select brush/erase/rectangle/ellipse/pan;
+  **[/]** adjust brush size; **Ctrl/Cmd+Z** undoes; **Ctrl/Cmd+Shift+Z** or
+  **Ctrl+Y** redoes; hold **Space** while dragging to pan.
+- **Ctrl/Cmd+wheel over the canvas:** zoom around the pointer. The brush outline
+  shows the painted diameter at the current zoom.
+
+Shortcuts leave ordinary text editing intact and do not act behind dialogs.
+Region/expansion controls sit beside the canvas when the workspace is wide enough
+and stack below it on smaller screens. Phone navigation indicates the current
+section and counts user references.
+
 ### Inpainting compatibility
 
 The frozen worker has **no native mask or strength input**. This UI sends a

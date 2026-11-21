@@ -44,6 +44,15 @@ describe("browser editing and export rules", () => {
       }),
     ).toThrow("limit");
   });
+  it.each(["left", "right", "top", "bottom"] as const)("blends only the %s seam when only that edge expands", side => {
+    const e = { left: 0, right: 0, top: 0, bottom: 0, seam: 3, [side]: 2 };
+    const p = expandedPlacement(8, 8, e);
+    const alpha = expansionCoverage(p, e.seam);
+    const at = (x: number, y: number) => alpha[(p.y + y) * p.canvasWidth + p.x + x];
+    const centers = { left: at(0, 4), right: at(7, 4), top: at(4, 0), bottom: at(4, 7) };
+    for (const [edge, value] of Object.entries(centers))
+      expect(value).toBe(edge === side ? 170 : 0);
+  });
   it("resolves aliases to the final positional image and rejects ambiguous/missing references", () => {
     const refs = [
       { id: "a", alias: "Person" },

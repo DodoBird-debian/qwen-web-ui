@@ -1,12 +1,11 @@
 import { $, node, button } from "../lib/dom";
-import { list, remove } from "../storage/db";
+import { getJob, jobSummaries, remove } from "../storage/db";
 import { DEFAULTS } from "../api/contract";
 import { TERMINAL } from "../api/runpod";
 import type { SavedJob } from "../api/jobs";
 interface HistoryContext {
   dialog: (title: string) => HTMLElement;
   endpoint: () => string;
-  requireConnection: () => unknown;
   resume: (record: SavedJob) => Promise<void>;
   reuse: (record: SavedJob) => Promise<void>;
   view: (record: SavedJob) => void;
@@ -22,7 +21,6 @@ export function bindHistory(context: HistoryContext) {
       '<label class="field">Resume a RunPod job ID<input id="manual-job-id" placeholder="Job ID for the connected endpoint"></label>';
     attach.append(
       button("Resume polling", async () => {
-        context.requireConnection();
         const runpodId = $<HTMLInputElement>("#manual-job-id").value.trim();
         if (!/^[A-Za-z0-9_-]+$/.test(runpodId))
           throw new Error("Enter a valid job ID.");
@@ -40,59 +38,85 @@ export function bindHistory(context: HistoryContext) {
     );
     body.append(attach);
     try {
-      const records = await list<SavedJob>("jobs");
+      const records = await jobSummaries();
+      if (!body.isConnected || !$("#content-dialog").hasAttribute("open")) return;
+      const jobList = node("div", "job-history-list");
+      const paging = node("div", "button-row");
+      const pageSize = 30;
+      let offset = 0;
       if (!records.length)
         body.append(node("p", "subtle", "No jobs saved in this browser."));
-      for (const record of records) {
-        const item = node("article", "history-item");
-        item.append(
-          node("strong", "", record.status),
-          node("span", "mono", record.runpodId),
-          node(
-            "small",
-            "subtle",
-            `${record.endpoint} · ${new Date(record.created).toLocaleString()}`,
-          ),
-        );
-        if (record.error) item.append(node("p", "notice", record.error));
-        if (record.results?.length)
+      const renderPage = () => {
+        jobList.replaceChildren();
+        for (const record of records.slice(offset, offset + pageSize)) {
+          const item = node("article", "history-item");
           item.append(
-            button("View results", () => {
-              context.view(record);
-              $<HTMLDialogElement>("#content-dialog").close();
-            }),
+            node("strong", "", record.status),
+            node("span", "mono", record.runpodId),
+            node(
+              "small",
+              "subtle",
+              `${record.endpoint} · ${new Date(record.created).toLocaleString()}`,
+            ),
           );
-        else if (
-          !TERMINAL.has(record.status) &&
-          !["WORKER_ERROR", "EXPIRED"].includes(record.status)
-        )
+          if (record.error) item.append(node("p", "notice", record.error));
+          if (record.count)
+            item.append(
+              button("View results", async () => {
+                const job = await getJob(record.id);
+                if (!job?.results?.length) throw new Error("Saved images are unavailable.");
+                context.view(job);
+                $<HTMLDialogElement>("#content-dialog").close();
+              }),
+            );
+          else if (
+            !TERMINAL.has(record.status) &&
+            !["WORKER_ERROR", "EXPIRED"].includes(record.status)
+          )
+            item.append(
+              button("Resume", async () => {
+                const job = await getJob(record.id);
+                if (!job) throw new Error("Saved request is unavailable.");
+                $<HTMLDialogElement>("#content-dialog").close();
+                await context.resume(job);
+              }),
+            );
           item.append(
-            button("Resume", () => {
-              $<HTMLDialogElement>("#content-dialog").close();
-              void context.resume(record);
-            }),
+            button(
+              "Reuse request",
+              async () => {
+                const job = await getJob(record.id);
+                if (!job) throw new Error("Saved request is unavailable.");
+                await context.reuse(job);
+                $<HTMLDialogElement>("#content-dialog").close();
+              },
+              "text-button",
+            ),
+            button(
+              "Delete locally",
+              async () => {
+                await remove("jobs", record.id);
+                context.removed(record.id);
+                records.splice(records.findIndex(row => row.id === record.id), 1);
+                if (offset >= records.length && offset) offset -= pageSize;
+                renderPage();
+              },
+              "text-button",
+            ),
           );
-        item.append(
-          button(
-            "Reuse request",
-            async () => {
-              await context.reuse(record);
-              $<HTMLDialogElement>("#content-dialog").close();
-            },
-            "text-button",
-          ),
-          button(
-            "Delete locally",
-            async () => {
-              await remove("jobs", record.id);
-              context.removed(record.id);
-              item.remove();
-            },
-            "text-button",
-          ),
-        );
-        body.append(item);
-      }
+          jobList.append(item);
+        }
+        previous.disabled = offset === 0;
+        next.disabled = offset + pageSize >= records.length;
+        pageLabel.textContent = records.length ? `${offset + 1}–${Math.min(offset + pageSize, records.length)} of ${records.length}` : "";
+      };
+      const previous = button("Newer jobs", () => { offset -= pageSize; renderPage(); });
+      const next = button("Older jobs", () => { offset += pageSize; renderPage(); });
+      const pageLabel = node("span", "subtle");
+      paging.append(previous, pageLabel, next);
+      paging.hidden = records.length <= pageSize;
+      body.append(jobList, paging);
+      renderPage();
     } catch {
       body.append(node("p", "notice", "Browser job history is unavailable."));
     }

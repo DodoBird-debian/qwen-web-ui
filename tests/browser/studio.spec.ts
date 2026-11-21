@@ -143,6 +143,7 @@ test("references insert at caret and follow their image when reordered", async (
     .getByRole("button", { name: "Insert ↗", exact: true })
     .click();
   await expect(page.locator("#prompt")).toHaveValue("Use <image1>");
+  await page.getByLabel("More actions for reference 1").click();
   await page
     .locator(".reference-card")
     .first()

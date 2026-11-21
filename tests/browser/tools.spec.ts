@@ -124,6 +124,7 @@ test("reference aliases, thumbnail autocomplete, role instructions, and guide of
     });
   await page.getByLabel("Reference 1 alias").fill("Main person");
   await page.getByLabel("Reference 1 alias").press("Tab");
+  await page.getByLabel("More actions for reference 1").click();
   await page.getByLabel("Reference 1 role").selectOption("person");
   await page.locator("#prompt").fill("Use @Main");
   await expect(page.locator(".mention-option")).toContainText("Main person");
@@ -145,7 +146,7 @@ test("reference aliases, thumbnail autocomplete, role instructions, and guide of
   expect(await page.locator("#prompt").inputValue()).toContain("<image3>");
   await page
     .locator("#references")
-    .getByRole("button", { name: "×", exact: true })
+    .getByRole("button", { name: "Remove reference 1", exact: true })
     .click();
   await expect(page.locator("#prompt")).toHaveValue(/<missing:/);
 });
@@ -312,7 +313,10 @@ test("20-image series supports both 4 and 1 outputs per request and retains the 
   const bytes = await readFile((await file.path())!);
   const members = unzipSync(bytes);
   expect(Object.keys(members)).toHaveLength(21);
-  expect(strFromU8(members["manifest.json"])).toContain('"119"');
+  const manifest = JSON.parse(strFromU8(members["manifest.json"]));
+  expect(manifest.images.at(-1).metadata).toMatchObject({
+    seed: "119", variant: "raw", file: { width: 512, height: 512, mime: "image/png" },
+  });
 });
 
 test("parameter grid labels nine fixed-seed results and submits distinct legal requests", async ({

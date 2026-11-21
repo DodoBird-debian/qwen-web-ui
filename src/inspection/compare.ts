@@ -1,4 +1,4 @@
-import type { InpaintSnapshot } from "../editor/inpaint";
+import { resultScale, type InpaintSnapshot } from "../editor/inpaint";
 export async function decodeCanvas(blob: Blob) {
   const bitmap = await createImageBitmap(blob);
   try {
@@ -14,10 +14,7 @@ export async function decodeCanvas(blob: Blob) {
 export async function alignRaw(blob: Blob, snapshot: InpaintSnapshot) {
   const raw = await decodeCanvas(blob),
     t = snapshot.transform;
-  if (raw.width !== t.width || raw.height !== t.height)
-    throw new Error(
-      "Raw result dimensions do not match the recorded edit transform.",
-    );
+  const { resultScaleX, resultScaleY } = resultScale(t, raw.width, raw.height);
   const out = document.createElement("canvas");
   out.width = t.sourceWidth;
   out.height = t.sourceHeight;
@@ -25,10 +22,10 @@ export async function alignRaw(blob: Blob, snapshot: InpaintSnapshot) {
     .getContext("2d")!
     .drawImage(
       raw,
-      t.padX,
-      t.padY,
-      t.crop.width * t.scale,
-      t.crop.height * t.scale,
+      t.padX * resultScaleX,
+      t.padY * resultScaleY,
+      t.crop.width * t.scale * resultScaleX,
+      t.crop.height * t.scale * resultScaleY,
       t.crop.x,
       t.crop.y,
       t.crop.width,

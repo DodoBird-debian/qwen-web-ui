@@ -183,6 +183,9 @@ def main(argv=None):
             command = f'sh {shlex.quote(remote + "/deploy/lxc/remote-deploy.sh")}'
             subprocess.run(ssh + [command], input=json.dumps(settings).encode(), env=env, check=True)
         finally:
+            # This UUID identifies only this invocation's disposable build tree.
+            subprocess.run(ssh + [f'rm -rf -- {shlex.quote(remote)}'], stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, check=False)
             subprocess.run(ssh[:-1] + ['-O', 'exit', ssh[-1]], stdin=subprocess.DEVNULL,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, check=False)
     print(f'Deployed successfully: http://{host} and https://{host} (self-signed certificate)')

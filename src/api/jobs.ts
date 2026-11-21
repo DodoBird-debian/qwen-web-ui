@@ -32,6 +32,40 @@ export interface SavedJob {
   cancelRequested?: boolean;
   cancelError?: string;
 }
+interface WorkerImage {
+  width: number;
+  height: number;
+  image_base64: string;
+  mime_type: string;
+  seed: unknown;
+}
+
+async function readResultImage(image: WorkerImage | null, id: string): Promise<ResultImage> {
+  if (!image || !Number.isInteger(image.width) || !Number.isInteger(image.height) ||
+      image.width < 1 || image.height < 1 || image.width > 4096 || image.height > 4096 ||
+      image.width * image.height > 4_500_000 ||
+      typeof image.image_base64 !== "string" || image.image_base64.length > 10_000_000)
+    throw new Error("Result image exceeds the worker limits.");
+  if (!["image/png", "image/jpeg", "image/webp"].includes(image.mime_type))
+    throw new Error("Unexpected worker image data.");
+  const seed = exactInteger(image.seed, "returned seed");
+  const binary = atob(image.image_base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const header = inspectImage(bytes.buffer);
+  if (header.width !== image.width || header.height !== image.height || header.mime !== image.mime_type)
+    throw new Error("Result image header does not match its metadata.");
+  const blob = new Blob([bytes], { type: image.mime_type });
+  const decoded = await createImageBitmap(blob);
+  try {
+    if (decoded.width !== image.width || decoded.height !== image.height)
+      throw new Error("Result image dimensions do not match its metadata.");
+  } finally {
+    decoded.close();
+  }
+  return { id, blob, seed, width: image.width, height: image.height, mime: image.mime_type };
+}
+
 export interface JobHooks {
   update: (job: SavedJob) => void;
   storageError: (message: string) => void;
@@ -136,74 +170,34 @@ export class JobManager {
           if (output.images.length > 4)
             throw new Error("Worker returned too many images.");
           const warnings: string[] = [];
-          if (record.input.prompt && output.images.length < record.input.num_images)
-            warnings.push(`Returned ${output.images.length} of ${record.input.num_images} requested images. Missing images were not automatically retried.`);
+          const invalid: string[] = [];
           if (Array.isArray(output.delivery?.warnings))
             warnings.push(...output.delivery.warnings.filter((text: unknown) => typeof text === "string").slice(0, 8));
-          record.warning = warnings.map((text) => text.slice(0, 1000)).join(" ") || undefined;
-          for (const image of output.images) {
-            if (
-              !Number.isInteger(image.width) ||
-              !Number.isInteger(image.height) ||
-              image.width < 1 ||
-              image.height < 1 ||
-              image.width > 4096 ||
-              image.height > 4096 ||
-              image.width * image.height > 4_500_000 ||
-              typeof image.image_base64 !== "string" ||
-              image.image_base64.length > 10_000_000
-            )
-              throw new Error("Result image exceeds the worker limits.");
-            if (
-              !["image/png", "image/jpeg", "image/webp"].includes(
-                image.mime_type,
-              ) ||
-              typeof image.image_base64 !== "string"
-            )
-              throw new Error("Unexpected worker image data.");
-            const binary = atob(image.image_base64),
-              bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++)
-              bytes[i] = binary.charCodeAt(i);
-            const header = inspectImage(bytes.buffer);
-            if (
-              header.width !== image.width ||
-              header.height !== image.height ||
-              header.mime !== image.mime_type
-            )
-              throw new Error(
-                "Result image header does not match its metadata.",
-              );
-            const blob = new Blob([bytes], { type: image.mime_type });
-            const decoded = await createImageBitmap(blob);
-            if (
-              decoded.width !== image.width ||
-              decoded.height !== image.height
-            ) {
-              decoded.close();
-              throw new Error(
-                "Result image dimensions do not match its metadata.",
-              );
+          for (const [index, image] of output.images.entries()) {
+            let entry: ResultImage;
+            try {
+              entry = await readResultImage(image, `${record.id}:${index}`);
+            } catch (error) {
+              invalid.push(`Image ${index + 1}: ${error instanceof Error ? error.message : String(error)}`);
+              continue;
             }
-            decoded.close();
-            const entry: ResultImage = {
-              id: `${record.id}:${record.results.length}`,
-              blob,
-              seed: exactInteger(image.seed, "returned seed"),
-              width: image.width,
-              height: image.height,
-              mime: image.mime_type,
-            };
             // Preserve raw results even if local compositing fails.
             record.results.push(entry);
             if (record.inpaint && this.process) {
               try {
-                entry.composite = await this.process(record.inpaint, blob);
+                entry.composite = await this.process(record.inpaint, entry.blob);
               } catch (error) {
                 record.error = `Local composite failed: ${error instanceof Error ? error.message : String(error)}. Raw output is available.`;
               }
             }
           }
+          if (!record.results.length) throw new Error(invalid.join(" "));
+          if (invalid.length) warnings.unshift(...invalid);
+          const count = `Returned ${record.results.length} of ${record.input.num_images}`;
+          if (record.input.prompt && record.results.length < record.input.num_images &&
+              !warnings.some((warning) => warning.startsWith(count + " ")))
+            warnings.unshift(`${count} requested images. Missing images were not automatically retried.`);
+          record.warning = warnings.map((text) => text.slice(0, 1000)).join(" ") || undefined;
           record.outputMeta = Object.fromEntries(
             Object.entries(output).filter(([name]) => name !== "images"),
           );

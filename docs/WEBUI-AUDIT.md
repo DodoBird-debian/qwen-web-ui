@@ -43,8 +43,9 @@ other clients have their own execution state.
   encodes. A descending ladder stops at the highest tested fitting candidate.
   A shared action lock prevents repeated clicks from starting the same local tool concurrently.
 - History trimming reads small session summaries and IndexedDB index keys, without
-  loading/cloning every result and base64 input. IndexedDB v2 upgrades existing v1
-  history in place. Active jobs are not evicted by completed-history limits.
+  loading/cloning every result and base64 input. IndexedDB v3 upgrades existing v1 and v2 history in place. History browsing
+  reads summaries and loads selected results by ID. Active jobs remain available
+  when completed-history limits apply.
 - Returned image headers, dimensions, image count and encoded size are checked
   before pixel decoding. Completed stored results are displayed without refetching
   and recompositing them.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Activate a tested static release and server-only RunPod defaults, with rollback."""
 import argparse
+import fcntl
 import ipaddress
 import json
 import os
@@ -65,12 +66,12 @@ def ensure_certificate(directory, host):
     """Keep an existing matching certificate; renew within 30 days of expiry."""
     try:
         address = ipaddress.ip_address(host)
-        identity = ['-checkip', str(address)]
+        identity = ['-verify_ip', str(address)]
         san = 'IP:' + str(address)
     except ValueError:
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]*', host):
             raise ValueError('Invalid certificate hostname.')
-        identity = ['-checkhost', host]
+        identity = ['-verify_hostname', host]
         san = 'DNS:' + host
     certificate, private_key = directory / 'selfsigned.crt', directory / 'private.key'
     directory.mkdir(parents=True, exist_ok=True)
@@ -78,10 +79,14 @@ def ensure_certificate(directory, host):
     def openssl(*args):
         return subprocess.run(['openssl', *map(str, args)], capture_output=True, check=False)
     if certificate.is_file() and private_key.is_file():
-        valid = openssl('x509', '-in', certificate, '-noout', '-checkend', '2592000', *identity)
+        valid = openssl('x509', '-in', certificate, '-noout', '-checkend', '2592000')
+        verify = ['verify', '-trusted', certificate, '-purpose', 'sslserver']
+        valid_host = openssl(*verify, *identity, certificate)
+        valid_loopback = openssl(*verify, '-verify_ip', '127.0.0.1', certificate)
         public = openssl('x509', '-in', certificate, '-noout', '-pubkey')
         key_public = openssl('pkey', '-in', private_key, '-pubout')
-        if valid.returncode == public.returncode == key_public.returncode == 0 and public.stdout == key_public.stdout:
+        if (all(check.returncode == 0 for check in (valid, valid_host, valid_loopback, public, key_public))
+                and public.stdout == key_public.stdout):
             private_key.chmod(0o600)
             return certificate, private_key
     with tempfile.TemporaryDirectory(prefix='.certificate-', dir=directory) as temporary:
@@ -127,6 +132,28 @@ def health_check(endpoint, certificate=None):
 
 
 def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=health_check):
+    app = base / 'opt/qwen-image-studio'
+    releases = app / 'releases'
+    releases.mkdir(parents=True, exist_ok=True)
+    with (app / '.activation.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        name = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '-' + uuid.uuid4().hex[:8]
+        release = releases / name
+        release.mkdir()
+        try:
+            previous = _activate(source, settings, base, run, check_health, release)
+        except Exception:
+            if release.exists() and (app / 'current').resolve() != release.resolve():
+                shutil.rmtree(release)
+            raise
+        for candidate in releases.iterdir():
+            if (not candidate.is_symlink() and candidate.is_dir()
+                    and re.fullmatch(r'[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}', candidate.name)
+                    and candidate.resolve() not in (release.resolve(), previous)):
+                shutil.rmtree(candidate)
+
+
+def _activate(source, settings, base, run, check_health, release):
     runpod = {**normalize_runpod(settings), **normalize_turbo(settings)}
     endpoint, key = runpod['RUNPOD_ENDPOINT_ID'], runpod['RUNPOD_API_KEY']
     dist = source / 'dist'
@@ -143,8 +170,8 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
     if current.exists() and not current.is_symlink():
         raise ValueError('current must be a release symlink; refusing to replace a directory.')
     previous = os.readlink(current) if current.is_symlink() else None
-    release = releases / (time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '-' + uuid.uuid4().hex[:8])
-    shutil.copytree(dist, release, symlinks=True)
+    previous_release = current.resolve() if previous else None
+    shutil.copytree(dist, release, symlinks=True, dirs_exist_ok=True)
     for path in [release, *release.rglob('*')]:
         if path.is_symlink():
             raise ValueError('Build output must not contain symlinks.')
@@ -206,6 +233,10 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
         # Keep the native LXC and container configurations on the same source template.
         server = (config / 'server.conf').read_text().replace('/etc/qwen-image-studio/', str(config) + '/')
         server = server.replace('/opt/qwen-image-studio/current', str(current))
+        if (previous_release and previous_release.parent == releases.resolve()
+                and re.fullmatch(r'[0-9]{8}T[0-9]{6}Z-[a-f0-9]+', previous_release.name)):
+            server = server.replace('# __PREVIOUS_ASSETS__\n        return 404;',
+                                    f'root "{previous_release}";\n        try_files $uri =404;')
         server = server.replace('    listen 8080;',
                                 '    listen 80 default_server;\n'
                                 '    listen 443 ssl default_server;\n'
@@ -240,6 +271,7 @@ def activate(source, settings, base=Path('/'), run=subprocess.run, check_health=
         raise
     print(f'Activated {release.name}; Nginx restarted; local health checks passed.')
     print(f'Previous release: {previous or "none"}')
+    return previous_release
 
 
 def main():

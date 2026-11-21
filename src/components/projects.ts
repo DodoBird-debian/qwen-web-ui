@@ -1,6 +1,12 @@
 import { $, node, button, toast, uid } from "../lib/dom";
 import { put, list, remove, persistenceEnabled } from "../storage/db";
 import type { Input } from "../api/contract";
+import type { InpaintSnapshot } from "../editor/inpaint";
+
+export interface ReusedInpaint {
+  snapshot: InpaintSnapshot;
+  endpoint: string;
+}
 
 export interface Project {
   schemaVersion?: 2;
@@ -18,6 +24,7 @@ export interface Project {
   }[];
   regions?: import("../editor/mask-editor").SavedRegion[];
   expansion?: import("../editor/outpaint").Expansion;
+  reusedInpaint?: ReusedInpaint;
   source?: Blob;
   mask?: Blob;
   crop: boolean;
@@ -31,7 +38,10 @@ export function bindProjects(context: {
   restore: (project: Project) => Promise<void>;
 }) {
   let selected: string | undefined;
+  let busy = false;
   $("#save-project").addEventListener("click", async () => {
+    if (busy) return;
+    busy = true;
     try {
       const snapshot = await context.capture(),
         id = selected || uid();
@@ -52,6 +62,8 @@ export function bindProjects(context: {
         "Unable to save project. Browser storage may be unavailable or full.",
         true,
       );
+    } finally {
+      busy = false;
     }
   });
   $("#project-open").addEventListener("click", async () => {
@@ -68,16 +80,28 @@ export function bindProjects(context: {
         );
         item.append(
           button("Open", async () => {
-            await context.restore(project);
-            selected = project.id;
-            $<HTMLDialogElement>("#content-dialog").close();
+            if (busy) return;
+            busy = true;
+            try {
+              await context.restore(project);
+              selected = project.id;
+              $<HTMLDialogElement>("#content-dialog").close();
+            } finally {
+              busy = false;
+            }
           }),
           button(
             "Delete",
             async () => {
-              await remove("projects", project.id);
-              item.remove();
-              if (selected === project.id) selected = undefined;
+              if (busy) return;
+              busy = true;
+              try {
+                await remove("projects", project.id);
+                item.remove();
+                if (selected === project.id) selected = undefined;
+              } finally {
+                busy = false;
+              }
             },
             "text-button",
           ),

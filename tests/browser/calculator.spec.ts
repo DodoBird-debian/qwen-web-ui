@@ -135,8 +135,9 @@ test("four-image preview is independent of submission and reports transport fit 
     "separate-jobs",
   );
   await page.locator("#request-preview").click();
+  await expect(page.locator("#content-dialog")).toContainText("4 images across 4 requests");
   const data = JSON.parse(await page.locator(".json-preview").innerText());
-  expect(data.input.num_images).toBe(4);
+  expect(data.input.num_images).toBe(1);
   for (const key of [
     "safetyGiB",
     "headroomGiB",

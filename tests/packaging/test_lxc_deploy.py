@@ -241,7 +241,27 @@ class DeploymentTests(unittest.TestCase):
         with patch.object(deployment, 'ROOT', self.base), patch.object(deployment.subprocess, 'run', run), \
                 patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(io.StringIO()):
             deployment.main(['--env-file', str(env_file), '--ssh-env-file', str(ssh_file)])
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 4)
+        self.assertRegex(calls[2][-1], r"^rm -rf -- /opt/qwen-image-studio/source/[0-9TZ-]+[0-9a-f]{8}$")
+
+    def test_remote_build_failure_still_cleans_its_uploaded_workspace(self):
+        env_file = self.base / 'runpod.env'
+        env_file.write_text(f'RUNPOD_API_KEY={DUMMY_KEY}\nRUNPOD_ENDPOINT_ID=fixture\n')
+        ssh_file = self.base / 'ssh.env'
+        ssh_file.write_text('LXC_HOST=192.168.2.5\n')
+        commands = []
+        def run(command, **kwargs):
+            commands.append(command)
+            if len(commands) == 2:
+                raise subprocess.CalledProcessError(1, command)
+            return subprocess.CompletedProcess(command, 0, '', '')
+        with patch.object(deployment, 'ROOT', self.base), patch.object(deployment.subprocess, 'run', run), \
+                patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(subprocess.CalledProcessError):
+                deployment.main(['--env-file', str(env_file), '--ssh-env-file', str(ssh_file)])
+        remote = commands[1][-1].split('/deploy/lxc/remote-deploy.sh')[0].removeprefix('sh ')
+        self.assertIn(remote, commands[0][-1])
+        self.assertEqual(commands[2][-1], 'rm -rf -- ' + remote)
 
     def test_check_mode_makes_no_ssh_connection_and_hides_values(self):
         env = self.base / 'runpod.env'
@@ -270,12 +290,93 @@ class DeploymentTests(unittest.TestCase):
         cert, key = activate.ensure_certificate(self.base / 'tls', '192.168.2.5')
         original = cert.read_bytes(), key.read_bytes()
         for address in ['192.168.2.5', '127.0.0.1']:
-            checked = subprocess.run(['openssl', 'x509', '-in', str(cert), '-noout', '-checkip', address],
+            checked = subprocess.run(['openssl', 'verify', '-trusted', str(cert), '-verify_ip', address, str(cert)],
                                      capture_output=True)
             self.assertEqual(checked.returncode, 0)
         activate.ensure_certificate(self.base / 'tls', '192.168.2.5')
         self.assertEqual((cert.read_bytes(), key.read_bytes()), original)
         self.assertEqual(stat.S_IMODE(key.stat().st_mode), 0o600)
+
+    def test_certificate_replaced_on_address_change(self):
+        cert, _ = activate.ensure_certificate(self.base / 'tls', '192.0.2.11')
+        original = cert.read_bytes()
+        activate.ensure_certificate(self.base / 'tls', '192.0.2.22')
+        self.assertNotEqual(cert.read_bytes(), original)
+        for address, valid in [('192.0.2.11', False), ('192.0.2.22', True), ('127.0.0.1', True)]:
+            with self.subTest(address=address):
+                checked = subprocess.run(
+                    ['openssl', 'verify', '-trusted', str(cert), '-verify_ip', address, str(cert)],
+                    capture_output=True,
+                )
+                self.assertEqual(checked.returncode == 0, valid)
+
+    def test_redeploy_serves_assets_from_immediately_previous_release(self):
+        source, host = self.fixture()
+        assets = source / 'dist/assets'
+        assets.mkdir()
+        chunk = assets / 'export-oldhash.js'
+        chunk.write_text('export const old = true;')
+        self.activate(source, host)
+        current = host / 'opt/qwen-image-studio/current'
+        previous = current.resolve()
+        chunk.rename(assets / 'export-newhash.js')
+
+        self.activate(source, host)
+        server = (host / 'etc/qwen-image-studio/server.conf').read_text()
+        self.assertIn('try_files $uri @previous_assets;', server)
+        self.assertIn(f'root "{previous}";\n        try_files $uri =404;', server)
+        self.assertTrue((previous / 'assets/export-oldhash.js').is_file())
+        self.assertTrue((current / 'assets/export-newhash.js').is_file())
+        self.assertFalse((current / 'assets/export-oldhash.js').exists())
+
+    def test_failed_and_overlapping_activations_preserve_success_and_bound_retention(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        source, host = self.fixture()
+        run = lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, '', '')
+        activate.activate(source, SETTINGS, host, run, lambda *_: None)
+        current = host / 'opt/qwen-image-studio/current'
+        original = current.resolve()
+        releases = original.parent
+        other = self.base / 'second'
+        shutil.copytree(source, other)
+        (other / 'dist/index.html').write_text('second')
+        first_health = threading.Event()
+        release_first = threading.Event()
+        second_started = threading.Event()
+
+        def fail_health(*_):
+            first_health.set()
+            self.assertTrue(release_first.wait(5))
+            raise RuntimeError('first health failed')
+
+        def second():
+            second_started.set()
+            other_settings = {**SETTINGS, 'RUNPOD_ENDPOINT_URL': 'https://api.runpod.ai/v2/second/run'}
+            activate.activate(other, other_settings, host, run, lambda *_: None)
+
+        with ThreadPoolExecutor(2) as pool:
+            first = pool.submit(activate.activate, source, SETTINGS, host, run, fail_health)
+            self.assertTrue(first_health.wait(5))
+            later = pool.submit(second)
+            self.assertTrue(second_started.wait(5))
+            try:
+                # A second independent open-file description cannot acquire the activation lock.
+                with (releases.parent / '.activation.lock').open() as handle:
+                    with self.assertRaises(BlockingIOError):
+                        activate.fcntl.flock(handle, activate.fcntl.LOCK_EX | activate.fcntl.LOCK_NB)
+            finally:
+                release_first.set()
+            with self.assertRaisesRegex(RuntimeError, 'first health failed'):
+                first.result()
+            later.result()
+        self.assertEqual((current / 'index.html').read_text(), 'second')
+        self.assertEqual(json.loads((current / 'config.json').read_text())['endpointId'], 'second')
+        self.assertIn("/api/runpod/second/", (host / 'etc/qwen-image-studio/http.conf').read_text())
+        self.assertEqual(set(releases.iterdir()), {current.resolve(), original})
+        previous = current.resolve()
+        self.activate(source, host)
+        self.assertEqual(set(releases.iterdir()), {current.resolve(), previous})
 
     def test_tls_health_check_verifies_certificate_and_checks_both_ports(self):
         cert, _ = activate.ensure_certificate(self.base / 'tls', '192.168.2.5')

@@ -38,7 +38,7 @@ export class ResultsPanel {
         Number.isInteger(job.input.num_images) && job.input.num_images >= 1 && job.input.num_images <= 4) {
       const seeds = Array.from({ length: job.input.num_images }, (_, i) => nextSeed(job.input.seed, i));
       const received = new Map(cells.filter((cell) => cell.result).map((cell) => [cell.result!.seed, cell]));
-      if ([...received.keys()].every((seed) => seeds.includes(seed)))
+      if (received.size === job.results?.length && [...received.keys()].every((seed) => seeds.includes(seed)))
         cells = seeds.map((seed, i) => received.has(seed)
           ? { ...received.get(seed)!, label: `Image ${i + 1}` }
           : { id: `${job.id}:omitted-${i}`, label: `Image ${i + 1} · Seed ${seed}`,
@@ -141,38 +141,46 @@ export class ResultsPanel {
         : c.result!.blob;
     toolbar.append(
       button("Download selected ZIP", async () => {
-        const items = picked();
+        const items = picked().map((cell) => {
+          const result = cell.result!;
+          const job = cell.job!;
+          const exported = actualVariant(cell);
+          const blob = exportBlob(cell);
+          const { images: _, ...input } = job.input;
+          return {
+            name: `qwen-${result.seed}-${exported}.${blob.type.split("/")[1]}`,
+            blob,
+            metadata: {
+              seed: result.seed,
+              jobId: job.runpodId,
+              input,
+              label: cell.label,
+              variant: exported,
+              file: {
+                width: exported === "composite" ? job.inpaint?.transform.sourceWidth : result.width,
+                height: exported === "composite" ? job.inpaint?.transform.sourceHeight : result.height,
+                mime: blob.type,
+                bytes: blob.size,
+              },
+              warning: job.warning,
+            },
+          };
+        });
         if (!items.length) throw new Error("Select at least one result.");
         const { createArchive } = await import("../export/archive");
-        const archive = await createArchive(
-          items.map((c) => {
-            const b = exportBlob(c),
-              { images: _, ...input } = c.job!.input;
-            return {
-              name: `qwen-${c.result!.seed}-${actualVariant(c)}.${b.type.split("/")[1]}`,
-              blob: b,
-              metadata: {
-                seed: c.result!.seed,
-                jobId: c.job!.runpodId,
-                input,
-                label: c.label,
-                variant: actualVariant(c),
-              },
-            };
-          }),
-        );
+        const archive = await createArchive(items);
         download(archive, "qwen-results.zip");
       }),
       button("Contact sheet", async () => {
-        const { contactSheet } = await import("../export/contact-sheet");
-        const all = cells.filter((c) => this.selected.has(c.id));
+        const all = cells.filter((c) => this.selected.has(c.id)).map((c) => ({
+          blob: c.result ? exportBlob(c) : undefined,
+          label: `${c.label}${c.result ? "" : ` · ${c.status}`}`,
+        }));
         if (!all.length) throw new Error("Select at least one cell.");
+        const { contactSheet } = await import("../export/contact-sheet");
         download(
           await contactSheet(
-            all.map((c) => ({
-              blob: c.result ? exportBlob(c) : undefined,
-              label: `${c.label}${c.result ? "" : ` · ${c.status}`}`,
-            })),
+            all,
             Math.min(10, columns || Math.ceil(Math.sqrt(all.length))),
           ),
           "qwen-contact-sheet.png",

@@ -1,4 +1,5 @@
 import { button, node, download, bytesLabel } from "../lib/dom";
+import { LatestPreview } from "../resources/latest-preview";
 import {
   encodeExport,
   type EncodedExport,
@@ -34,9 +35,7 @@ export function openExport(source: Blob, name: string) {
   const q = <T extends HTMLInputElement | HTMLSelectElement>(key: string) =>
     dialog.querySelector<T>(`[data-${key}]`)!;
   let prepared: EncodedExport | undefined,
-    url = "",
-    version = 0;
-  let encoding: AbortController | undefined;
+    url = "";
   const save = button("Download export", () => {
     if (!prepared) return;
     download(
@@ -46,11 +45,14 @@ export function openExport(source: Blob, name: string) {
   });
   save.disabled = true;
   function invalidate() {
-    encoding?.abort();
-    version++;
     prepared = undefined;
     save.disabled = true;
-    status.textContent = "Preview to encode and measure the actual file.";
+    status.textContent = "Preparing preview…";
+    image.hidden = true;
+    image.removeAttribute("src");
+    if (url) URL.revokeObjectURL(url);
+    url = "";
+    task.invalidate();
     q<HTMLInputElement>("quality").disabled = q("format").value === "png";
     dialog.querySelector("[data-quality-value]")!.textContent =
       q("quality").value;
@@ -59,14 +61,10 @@ export function openExport(source: Blob, name: string) {
         !q<HTMLInputElement>("resize").checked;
   }
   dialog.addEventListener("input", invalidate);
-  const preview = button("Preview export", async () => {
-    const token = ++version;
-    encoding?.abort();
-    encoding = new AbortController();
-    save.disabled = true;
-    status.textContent = "Encoding in your browser…";
-    preview.disabled = true;
-    try {
+  dialog.addEventListener("change", invalidate);
+  const preview = button("Preview export", () => task.run());
+  const task = new LatestPreview<EncodedExport>({
+    encode: async signal => {
       const o: ExportOptions = {
         format: q("format").value as ExportOptions["format"],
         quality: Number(q("quality").value),
@@ -84,27 +82,36 @@ export function openExport(source: Blob, name: string) {
             }
           : {}),
       };
-      const result = await encodeExport(source, o, encoding.signal);
-      if (token !== version) return;
+      return encodeExport(source, o, signal);
+    },
+    pending: () => {
+      prepared = undefined;
+      save.disabled = true;
+      preview.disabled = true;
+      status.textContent = "Encoding in your browser…";
+    },
+    ready: result => {
       prepared = result;
       if (url) URL.revokeObjectURL(url);
       url = URL.createObjectURL(result.blob);
       image.src = url;
-      status.textContent = `${result.width} × ${result.height} · ${bytesLabel(result.blob.size)} (${result.blob.size.toLocaleString()} bytes) · ${result.blob.type}${o.format === "png" ? "" : ` · quality ${result.quality}`} · ${result.hasAlpha ? (o.format === "jpeg" ? "alpha flattened" : "alpha retained") : "opaque source"}`;
+      image.hidden = false;
+      const format = q("format").value;
+      status.textContent = `${result.width} × ${result.height} · ${bytesLabel(result.blob.size)} (${result.blob.size.toLocaleString()} bytes) · ${result.blob.type}${format === "png" ? "" : ` · quality ${result.quality}`} · ${result.hasAlpha ? (format === "jpeg" ? "alpha flattened" : "alpha retained") : "opaque source"}`;
       save.disabled = false;
-    } catch (e) {
-      if (token === version)
-        status.textContent = e instanceof Error ? e.message : String(e);
-    } finally {
       preview.disabled = false;
-    }
+    },
+    discard: () => {},
+    error: error => {
+      status.textContent = error instanceof Error ? error.message : String(error);
+      preview.disabled = false;
+    },
   });
   actions.append(preview, save);
   dialog.addEventListener(
     "close",
     () => {
-      version++;
-      encoding?.abort();
+      task.close();
       if (url) URL.revokeObjectURL(url);
       dialog.remove();
     },
@@ -115,6 +122,7 @@ export function openExport(source: Blob, name: string) {
       if (dialog.isConnected && !q("width").value && !q("height").value) {
         q("width").value = String(b.width);
         q("height").value = String(b.height);
+        invalidate();
       }
       b.close();
     })

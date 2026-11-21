@@ -1,17 +1,46 @@
 import type { SavedJob } from "../api/jobs";
-import { $, button, node } from "../lib/dom";
-import { list, persistenceEnabled } from "../storage/db";
+import { $, button, node, toast } from "../lib/dom";
+import { getJob, jobFrames, jobSummaries, persistenceEnabled } from "../storage/db";
+
+import { jobSummary, type JobSummary } from "../storage/job-summary";
 
 /** Browsing images never changes the job being polled or submits a request. */
 export class ImageHistory {
-  private records = new Map<string, SavedJob>();
-  private previews = new Map<string, { blob: Blob; url: string; card: HTMLElement }>();
+  private records = new Map<string, JobSummary>();
+  private previews = new Map<string, { job: JobSummary; url: string; card: HTMLElement }>();
   private thumbnails = Promise.resolve();
-  constructor(private root: HTMLElement, private view: (record: SavedJob) => void) {}
+  constructor(private root: HTMLElement, private view: (record: SavedJob) => void) {
+    const toggle = root.querySelector<HTMLButtonElement>("#history-toggle")!;
+    toggle.addEventListener("click", () => {
+      const content = root.querySelector<HTMLElement>("#image-history-content")!;
+      content.hidden = !content.hidden;
+      toggle.setAttribute("aria-expanded", String(!content.hidden));
+      toggle.textContent = `Image history ${content.hidden ? "▸" : "▾"}`;
+    });
+  }
+
+  get hasImages() { return !!this.records.size; }
+
+  private recent() {
+    return [...this.records.values()].sort((a, b) => b.created - a.created).slice(0, 12);
+  }
+
+  async sources() {
+    const sources: { blob: Blob; name: string }[] = [];
+    for (const job of this.recent()) {
+      for (const image of await jobFrames(job.id)) {
+        sources.push({ blob: image.composite || image.blob, name: `Result ${image.seed}` });
+        if (sources.length === 12) return sources;
+      }
+    }
+    return sources;
+  }
 
   remember(record: SavedJob) {
     if (!record.results?.length) return;
-    this.records.set(record.id, record);
+    const row = jobSummary(record), prior = this.records.get(row.id);
+    if (prior && prior.count === row.count && prior.status === row.status) return;
+    this.records.set(record.id, row);
     this.render();
   }
   forget(id: string) {
@@ -19,10 +48,8 @@ export class ImageHistory {
     this.render();
   }
   async restore() {
-    const saved = await list<SavedJob>("jobs");
-    const current = this.records;
-    this.records = new Map(saved.filter((job) => job.results?.length).map((job) => [job.id, job]));
-    for (const [id, job] of current) this.records.set(id, job);
+    const saved = await jobSummaries();
+    this.records = new Map(saved.filter(job => job.count > 0).map(job => [job.id, job]));
     this.render();
   }
   note() {
@@ -34,9 +61,9 @@ export class ImageHistory {
     const records = [...this.records.values()].sort((a, b) => b.created - a.created);
     this.root.hidden = !records.length;
     this.note();
-    $("#image-history-count").textContent = `${records.reduce((sum, job) => sum + (job.results?.length || 0), 0)} images`;
+    $("#image-history-count").textContent = `${records.reduce((sum, job) => sum + job.count, 0)} images`;
     // Keep decoded previews bounded; All jobs opens every retained generation.
-    const recent = records.slice(0, 12);
+    const recent = this.recent();
     for (const [id, preview] of this.previews) {
       if (!recent.some((job) => job.id === id)) {
         URL.revokeObjectURL(preview.url);
@@ -45,11 +72,14 @@ export class ImageHistory {
     }
     const content = document.createDocumentFragment();
     for (const job of recent) {
-      const blob = job.results![0].composite || job.results![0].blob;
       let preview = this.previews.get(job.id);
-      if (!preview || preview.blob !== blob) {
+      if (!preview || preview.job !== job) {
         if (preview) URL.revokeObjectURL(preview.url);
-        const card = button("", () => this.view(this.records.get(job.id)!));
+        const card = button("", async () => {
+          const record = await getJob(job.id);
+          if (!record?.results?.length) return toast("Saved images are unavailable.", true);
+          this.view(record);
+        });
         card.className = "image-history-card checkerboard";
         card.dataset.historyJob = job.runpodId;
         const image = node("img");
@@ -57,14 +87,16 @@ export class ImageHistory {
         image.loading = "lazy";
         image.decoding = "async";
         card.append(image, node("span", "image-history-badge"));
-        preview = { blob, url: "", card };
+        preview = { job, url: "", card };
         this.previews.set(job.id, preview);
         const entry = preview;
         // Decode one small preview at a time, including when restoring history.
         // Full-resolution blobs remain available for viewing/exporting.
         this.thumbnails = this.thumbnails.then(async () => {
           if (this.previews.get(job.id) !== entry) return;
-          const bitmap = await createImageBitmap(blob);
+          const [frame] = await jobFrames(job.id);
+          if (!frame || this.previews.get(job.id) !== entry) return;
+          const bitmap = await createImageBitmap(frame.composite || frame.blob);
           const canvas = node("canvas"); canvas.width = canvas.height = 96;
           const scale = Math.max(96 / bitmap.width, 96 / bitmap.height);
           try { canvas.getContext("2d")!.drawImage(bitmap,
@@ -78,9 +110,9 @@ export class ImageHistory {
           image.src = entry.url;
         }).catch(() => { image.alt = "Preview unavailable; open the saved generation."; });
       }
-      preview.card.title = `${job.input.prompt || "Generation"} · ${job.runpodId}`;
-      preview.card.setAttribute("aria-label", `View ${job.results!.length} images from ${job.runpodId}`);
-      preview.card.querySelector("span")!.textContent = `${job.results!.length} image${job.results!.length === 1 ? "" : "s"}`;
+      preview.card.title = `${job.title} · ${job.runpodId}`;
+      preview.card.setAttribute("aria-label", `View ${job.count} images from ${job.runpodId}`);
+      preview.card.querySelector("span")!.textContent = `${job.count} image${job.count === 1 ? "" : "s"}`;
       content.append(preview.card);
     }
     $("#image-history-list").replaceChildren(content);

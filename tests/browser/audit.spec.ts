@@ -405,6 +405,6 @@ test("upgrades v1 browser history and trims by metadata while retaining active j
         };
       }),
   );
-  expect(data.version).toBe(2);
+  expect(data.version).toBe(3);
   expect(data.keys.sort()).toEqual(["active", "audit-endpoint:latest"]);
 });

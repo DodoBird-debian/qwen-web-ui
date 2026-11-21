@@ -133,6 +133,20 @@ export async function prepareInpaint(
       c.width = c.height = 1;
   }
 }
+export function resultScale(t: InpaintSnapshot["transform"], width: number, height: number) {
+  // The worker may downscale to fit its inline response limit. Accept a
+  // proportional reduction (including integer rounding), then map the crop
+  // in the returned image's coordinates. Keep unrelated shape errors visible.
+  if (
+    width > t.width || height > t.height ||
+    Math.abs(width * t.height - height * t.width) >
+      Math.max(t.width, t.height)
+  )
+    throw new Error(
+      "Worker result dimensions do not match the inpaint request.",
+    );
+  return { resultScaleX: width / t.width, resultScaleY: height / t.height };
+}
 export async function composite(
   snapshot: InpaintSnapshot,
   result: Blob,
@@ -144,21 +158,9 @@ export async function composite(
       bitmaps.push(await createImageBitmap(blob));
     const [source, mask, generated] = bitmaps,
       t = snapshot.transform;
-    // The worker may downscale to fit its inline response limit. Accept a
-    // proportional reduction (including integer rounding), then map the crop
-    // in the returned image's coordinates. Keep unrelated shape errors visible.
-    if (
-      generated.width > t.width || generated.height > t.height ||
-      Math.abs(generated.width * t.height - generated.height * t.width) >
-        Math.max(t.width, t.height)
-    )
-      throw new Error(
-        "Worker result dimensions do not match the inpaint request.",
-      );
+    const { resultScaleX, resultScaleY } = resultScale(t, generated.width, generated.height);
     if (mask.width !== source.width || mask.height !== source.height)
       throw new Error("Composite mask dimensions differ from the source.");
-    const resultScaleX = generated.width / t.width,
-      resultScaleY = generated.height / t.height;
     const original = canvas(source.width, source.height),
       edited = canvas(source.width, 128),
       maskCanvas = canvas(source.width, 128);

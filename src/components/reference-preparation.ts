@@ -1,4 +1,5 @@
 import { $, node, button, bytesLabel } from "../lib/dom";
+import { LatestPreview } from "../resources/latest-preview";
 import {
   resizeReference,
   releaseReference,
@@ -34,36 +35,56 @@ export function openReferencePreparation(
     "generate-button",
   );
   apply.disabled = true;
-  const inspect = button("Preview encoding", async () => {
-    const side = Number($<HTMLInputElement>("#compress-size").value),
-      quality = Number($<HTMLInputElement>("#compress-quality").value);
-    if (
-      !Number.isInteger(side) ||
-      side < 32 ||
-      side > 12000 ||
-      !Number.isInteger(quality) ||
-      quality < 1 ||
-      quality > 100
-    )
-      throw new Error("Enter a valid side and quality.");
-    const updated = await resizeReference(
-      original,
-      side,
-      $<HTMLSelectElement>("#compress-format").value as any,
-      quality,
-    );
-    if (candidate) releaseReference(candidate);
-    candidate = updated;
-    preview.src = updated.url;
-    report.textContent = `${original.width}×${original.height} → ${updated.width}×${updated.height}. Base64: ${bytesLabel(original.base64.length)} → ${bytesLabel(updated.base64.length)}.`;
-    apply.disabled = false;
+  const inspect = button("Preview encoding", () => task.run());
+  const task = new LatestPreview<Reference>({
+    encode: async () => {
+      const side = Number($<HTMLInputElement>("#compress-size", body).value),
+        quality = Number($<HTMLInputElement>("#compress-quality", body).value);
+      if (!Number.isInteger(side) || side < 32 || side > 12000 ||
+          !Number.isInteger(quality) || quality < 1 || quality > 100)
+        throw new Error("Enter a valid side and quality.");
+      return resizeReference(original, side,
+        $<HTMLSelectElement>("#compress-format", body).value as "png" | "webp" | "jpeg", quality);
+    },
+    pending: () => {
+      inspect.disabled = true;
+      apply.disabled = true;
+      report.textContent = "Encoding in your browser…";
+    },
+    ready: updated => {
+      if (candidate) releaseReference(candidate);
+      candidate = updated;
+      preview.src = updated.url;
+      report.textContent = `${original.width}×${original.height} → ${updated.width}×${updated.height}. Base64: ${bytesLabel(original.base64.length)} → ${bytesLabel(updated.base64.length)}.`;
+      apply.disabled = false;
+      inspect.disabled = false;
+    },
+    discard: releaseReference,
+    error: error => {
+      inspect.disabled = false;
+      report.textContent = error instanceof Error ? error.message : String(error);
+    },
   });
+  function invalidate() {
+    if (candidate) releaseReference(candidate);
+    candidate = undefined;
+    preview.src = original.url;
+    apply.disabled = true;
+    report.textContent = "Preparing preview…";
+    $<HTMLInputElement>("#compress-quality", body).disabled =
+      $<HTMLSelectElement>("#compress-format", body).value === "png";
+    task.invalidate();
+  }
+  controls.addEventListener("input", invalidate);
+  controls.addEventListener("change", invalidate);
   body.append(controls, report, inspect, apply);
   $<HTMLDialogElement>("#content-dialog").addEventListener(
     "close",
     () => {
+      task.close();
       if (candidate) releaseReference(candidate);
     },
     { once: true },
   );
+  invalidate();
 }

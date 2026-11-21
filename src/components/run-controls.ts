@@ -12,27 +12,22 @@ export class RunControls {
   constructor(
     private root: HTMLElement,
     change: () => void,
-    pickCount: (count: number) => void = () => {},
   ) {
-    root.innerHTML = `<section class="batch-planner" aria-label="Images and request planning"><h3>Images & requests</h3><div id="image-presets" class="image-presets" aria-label="Image count shortcuts"></div><label class="field">Run type<select id="run-kind"><option value="single">One batch · up to 4 images</option><option value="series">More images · automatic batches</option><option value="grid">Parameter comparison grid</option></select></label><div id="series-controls" hidden><label class="field">Total images<input id="series-total" type="number" min="1" max="100" value="20"></label><label class="field">Images per request<select id="series-batch"><option value="1">1 · separate requests</option><option value="2">Up to 2</option><option value="3">Up to 3</option><option value="4" selected>Up to 4 · recommended</option></select></label></div><div id="grid-controls" hidden><label class="field">Columns<select id="grid-x"><option value="steps">Steps</option><option value="cfg">CFG</option><option value="seed">Seed</option></select></label><label class="field">Column values (comma separated)<input id="grid-x-values" value="20,40,60"></label><label class="field">Rows<select id="grid-y"><option value="none">None · one-axis strip</option><option value="cfg" selected>CFG</option><option value="steps">Steps</option><option value="seed">Seed</option></select></label><label class="field">Row values (comma separated)<input id="grid-y-values" value="1,2,3"></label><label class="field">Grouping<select id="grid-batch"><option value="1">1 · controlled comparison</option><option value="4">Up to 4 · only consecutive seeds with identical settings</option></select></label><p class="subtle">Same seed across non-seed axes. CFG 1 omits the negative prompt; CFG above 1 activates it. Fixed seeds do not guarantee identical output across batch routes.</p></div><p id="run-summary" class="notice"></p><div id="batch-plan" class="batch-plan" aria-label="Planned requests"></div><p id="batch-details" class="subtle"></p></section>`;
+    root.innerHTML = `<section class="batch-planner" aria-label="Images and request planning"><h3>Images & requests</h3><div id="image-presets" class="image-presets" aria-label="Image count shortcuts"></div><label class="field">Run type<select id="run-kind"><option value="single">One batch · up to 4 images</option><option value="series">More images · automatic batches</option><option value="grid">Parameter comparison grid</option></select></label><div id="single-controls"><label class="field">Images / request<select id="image-count"><option>1</option><option>2</option><option>3</option><option>4</option></select><small>Maximum 4 per API request</small></label><label class="switch-field"><span>Separate output jobs<small>Send one image at a time</small></span><input id="separate-jobs" type="checkbox" role="switch"></label></div><div id="series-controls" hidden><label class="field">Total images<input id="series-total" type="number" min="1" max="100" value="20"></label><label class="field">Images per request<select id="series-batch"><option value="1">1 · separate requests</option><option value="2">Up to 2</option><option value="3">Up to 3</option><option value="4" selected>Up to 4 · recommended</option></select></label></div><div id="grid-controls" hidden><label class="field">Columns<select id="grid-x"><option value="steps">Steps</option><option value="cfg">CFG</option><option value="seed">Seed</option></select></label><label class="field">Column values (comma separated)<input id="grid-x-values" value="20,40,60"></label><label class="field">Rows<select id="grid-y"><option value="none">None · one-axis strip</option><option value="cfg" selected>CFG</option><option value="steps">Steps</option><option value="seed">Seed</option></select></label><label class="field">Row values (comma separated)<input id="grid-y-values" value="1,2,3"></label><label class="field">Grouping<select id="grid-batch"><option value="1">1 · controlled comparison</option><option value="4">Up to 4 · only consecutive seeds with identical settings</option></select></label><p class="subtle">Same seed across non-seed axes. CFG 1 omits the negative prompt; CFG above 1 activates it. Fixed seeds do not guarantee identical output across batch routes.</p></div><p id="run-summary" class="notice"></p><div id="batch-plan" class="batch-plan" aria-label="Planned requests"></div><p id="batch-details" class="subtle"></p></section>`;
     for (const count of [1, 4, 10, 20]) {
       const preset = button(`${count}`, () => {
         root.querySelector<HTMLSelectElement>("#run-kind")!.value = count > 4 ? "series" : "single";
         root.querySelector<HTMLInputElement>("#series-total")!.value = String(count);
         root.querySelector<HTMLSelectElement>("#series-batch")!.value = "4";
-        this.sync();
-        pickCount(Math.min(4, count));
+        this.setImageCount(Math.min(4, count));
         change();
       }, "count-preset");
+      preset.dataset.count = String(count);
       preset.setAttribute("aria-label", `Create ${count} images`);
       preset.title = count > 4 ? `${count} images, sequential requests of up to 4` : `${count} images in one request`;
       root.querySelector("#image-presets")!.append(preset);
     }
     root.addEventListener("input", () => {
-      this.sync();
-      change();
-    });
-    root.addEventListener("change", () => {
       this.sync();
       change();
     });
@@ -45,6 +40,7 @@ export class RunControls {
   }
   normal() {
     this.root.querySelector<HTMLSelectElement>("#run-kind")!.value = "single";
+    this.root.querySelector<HTMLInputElement>("#separate-jobs")!.checked = false;
     this.sync();
   }
   get kind() {
@@ -68,7 +64,25 @@ export class RunControls {
     }
     this.sync();
   }
+  get imageCount() {
+    return Number(this.value("image-count"));
+  }
+  setImageCount(count: number) {
+    if (!Number.isInteger(count) || count < 1 || count > 4) return;
+    this.root.querySelector<HTMLSelectElement>("#image-count")!.value = String(count);
+    this.sync();
+  }
+  separateJobs() {
+    return this.root.querySelector<HTMLInputElement>("#separate-jobs")!.checked;
+  }
   private sync() {
+    this.root.querySelector<HTMLElement>("#single-controls")!.hidden = this.kind !== "single";
+    this.root.querySelector<HTMLSelectElement>("#image-count")!.disabled = this.kind !== "single";
+    this.root.querySelector<HTMLInputElement>("#separate-jobs")!.disabled = this.kind !== "single";
+    const count = this.kind === "single" ? this.imageCount
+      : this.kind === "series" ? Number(this.value("series-total")) : undefined;
+    this.root.querySelectorAll<HTMLElement>("[data-count]").forEach(item =>
+      item.setAttribute("aria-pressed", String(Number(item.dataset.count) === count)));
     this.root.querySelector<HTMLElement>("#series-controls")!.hidden =
       this.kind !== "series";
     this.root.querySelector<HTMLElement>("#grid-controls")!.hidden =

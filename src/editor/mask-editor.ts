@@ -1,5 +1,5 @@
 import { alphaOf, putAlpha, canvas } from "./inpaint";
-import { canvasBlob } from "../references/images";
+import { canvasBlob, inspectImage } from "../references/images";
 import { uid } from "../lib/dom";
 import {
   REGION_COLOURS,
@@ -43,6 +43,9 @@ export class MaskEditor {
   private previous = { x: 0, y: 0 };
   private strokeBase?: Uint8Array;
   private zoom = 1;
+  private temporaryPan = false;
+  private cursor = document.createElement("div");
+  private cursorPoint?: { x: number; y: number };
   private regionListener = () => {};
   constructor(
     private viewport: HTMLElement,
@@ -54,7 +57,46 @@ export class MaskEditor {
     this.overlay.style.pointerEvents = "none";
     this.stage.append(this.source, this.overlay);
     viewport.append(this.stage);
+    this.cursor.className = "brush-cursor";
+    this.cursor.hidden = true;
+    this.cursor.setAttribute("aria-hidden", "true");
+    this.stage.append(this.cursor);
+    viewport.addEventListener("pointermove", event => {
+      this.cursorPoint = event.pointerType === "touch" ? undefined : { x: event.clientX, y: event.clientY };
+      this.updateCursor();
+    });
+    viewport.addEventListener("pointerleave", () => {
+      this.cursorPoint = undefined;
+      this.updateCursor();
+    });
+    viewport.addEventListener("scroll", () => this.updateCursor());
+    viewport.addEventListener("wheel", event => {
+      if ((!event.ctrlKey && !event.metaKey) || !this.loaded || document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      if (this.active) return;
+      this.setZoom(this.zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15), { x: event.clientX, y: event.clientY });
+      viewport.dispatchEvent(new CustomEvent("editorzoom", { detail: this.zoom }));
+    }, { passive: false });
     new ResizeObserver(() => this.fit()).observe(viewport);
+  }
+  get drawing() { return this.active; }
+  setTemporaryPan(value: boolean) {
+    this.temporaryPan = value;
+    this.updateCursor();
+  }
+  updateCursor() {
+    const p = this.cursorPoint;
+    const tool = this.active ? this.strokeTool : this.temporaryPan ? "pan" : this.tool;
+    this.viewport.classList.toggle("canvas-panning", tool === "pan");
+    this.cursor.hidden = !this.loaded || !p || (tool !== "brush" && tool !== "erase");
+    if (this.cursor.hidden || !p) return;
+    const bounds = this.stage.getBoundingClientRect();
+    const x = p.x - bounds.left, y = p.y - bounds.top;
+    this.cursor.hidden = x < 0 || y < 0 || x > bounds.width || y > bounds.height;
+    const diameter = this.brushSize * bounds.width / this.source.width;
+    Object.assign(this.cursor.style, {
+      left: `${x}px`, top: `${y}px`, width: `${diameter}px`, height: `${diameter}px`,
+    });
   }
   get mask() {
     return this.regions.find((r) => r.id === this.selected)!.mask;
@@ -62,8 +104,30 @@ export class MaskEditor {
   onRegionsChange(listener: () => void) {
     this.regionListener = listener;
   }
-  async load(blob: Blob, mask?: Blob) {
-    const version = ++this.loadVersion;
+  unload() {
+    this.loadVersion++;
+    this.loaded = false;
+    this.active = false;
+    this.temporaryPan = false;
+    this.pointerId = undefined;
+    this.strokeBase = undefined;
+    this.zoom = 1;
+    this.selected = "";
+    this.regions = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    for (const layer of [this.source, this.overlay, this.foreground]) {
+      layer.width = 1;
+      layer.height = 1;
+    }
+    this.mount();
+    this.updateCursor();
+    this.changed();
+  }
+  beginSourceLoad() {
+    return ++this.loadVersion;
+  }
+  async load(blob: Blob, mask?: Blob, version = this.beginSourceLoad()) {
     const bitmap = await createImageBitmap(blob, {
       imageOrientation: "from-image",
     });
@@ -72,6 +136,7 @@ export class MaskEditor {
       return;
     }
     this.active = false;
+    this.temporaryPan = false;
     this.pointerId = undefined;
     this.source.width =
       this.overlay.width =
@@ -103,6 +168,7 @@ export class MaskEditor {
     this.zoom = 1;
     this.fit();
     this.changed();
+    return true;
   }
   private createMask() {
     const layer = canvas(this.source.width, this.source.height);
@@ -184,8 +250,10 @@ export class MaskEditor {
     this.changed();
   }
   private mount() {
+    const focused = this.stage.contains(document.activeElement);
     this.stage.querySelectorAll(".mask-layer").forEach((e) => e.remove());
     if (this.regions.length) this.stage.append(this.mask, this.foreground);
+    if (focused && this.regions.length) this.mask.focus({ preventScroll: true });
     this.redraw();
   }
   private tint(region: Region) {
@@ -307,9 +375,10 @@ export class MaskEditor {
   private down(e: PointerEvent) {
     if (!this.loaded || e.button !== 0 || this.active) return;
     e.preventDefault();
+    this.mask.focus({ preventScroll: true });
     this.mask.setPointerCapture(e.pointerId);
     this.active = true;
-    this.strokeTool = this.tool;
+    this.strokeTool = this.temporaryPan ? "pan" : this.tool;
     this.pointerId = e.pointerId;
     this.screenPoint = { x: e.clientX, y: e.clientY };
     this.start = this.previous = this.point(e);
@@ -385,6 +454,7 @@ export class MaskEditor {
       this.mask.releasePointerCapture(e.pointerId);
     this.strokeBase = undefined;
     if (this.strokeTool !== "pan") this.changed();
+    this.updateCursor();
   }
   clear() {
     if (this.active) return;
@@ -407,9 +477,19 @@ export class MaskEditor {
     putAlpha(this.mask, a);
     this.changed();
   }
-  setZoom(value: number) {
-    this.zoom = value;
+  setZoom(value: number, anchor?: { x: number; y: number }) {
+    if (this.active || !Number.isFinite(value)) return;
+    const before = this.stage.getBoundingClientRect();
+    const point = anchor || { x: this.viewport.getBoundingClientRect().left + this.viewport.clientWidth / 2,
+      y: this.viewport.getBoundingClientRect().top + this.viewport.clientHeight / 2 };
+    const x = before.width ? (point.x - before.left) / before.width : 0.5;
+    const y = before.height ? (point.y - before.top) / before.height : 0.5;
+    this.zoom = Math.max(0.5, Math.min(8, value));
     this.fit();
+    const after = this.stage.getBoundingClientRect();
+    this.viewport.scrollLeft += after.left + x * after.width - point.x;
+    this.viewport.scrollTop += after.top + y * after.height - point.y;
+    this.updateCursor();
   }
   private fit() {
     if (!this.loaded) return;
@@ -421,6 +501,7 @@ export class MaskEditor {
     );
     this.stage.style.width = `${Math.max(1, this.source.width * fit * this.zoom)}px`;
     this.stage.style.aspectRatio = `${this.source.width}/${this.source.height}`;
+    this.updateCursor();
   }
   private changed(pixels = true) {
     this.revision++;
@@ -435,7 +516,14 @@ export class MaskEditor {
   async importMask(blob: Blob) {
     if (!this.loaded) throw new Error("Load a source first.");
     if (blob.size > 50_000_000) throw new Error("Mask exceeds 50 MB.");
+    const version = this.loadVersion;
+    const target = this.mask;
+    inspectImage(await blob.arrayBuffer());
     const b = await createImageBitmap(blob);
+    if (version !== this.loadVersion || !this.regions.some(region => region.mask === target)) {
+      b.close();
+      return;
+    }
     if (b.width !== this.source.width || b.height !== this.source.height) {
       b.close();
       throw new Error("Mask dimensions must match the source.");
@@ -453,8 +541,8 @@ export class MaskEditor {
           255,
       );
     this.snapshot();
-    this.alphaCache.delete(this.mask);
-    putAlpha(this.mask, a);
+    this.alphaCache.delete(target);
+    putAlpha(target, a);
     this.changed();
   }
   async exportMask() {
@@ -469,11 +557,11 @@ export class MaskEditor {
     ctx.putImageData(p, 0, 0);
     return canvasBlob(c);
   }
-  async saveRegions(): Promise<SavedRegion[]> {
-    const saved: SavedRegion[] = [];
-    for (const { mask, ...r } of this.regions)
-      saved.push({ ...r, blob: await canvasBlob(mask) });
-    return saved;
+  saveRegions(): Promise<SavedRegion[]> {
+    return Promise.all(this.regions.map(async ({ mask, ...region }) => ({
+      ...region,
+      blob: await canvasBlob(mask),
+    })));
   }
   async loadRegions(regions: SavedRegion[]) {
     if (
@@ -482,9 +570,14 @@ export class MaskEditor {
       regions.length * this.source.width * this.source.height > 40_000_000
     )
       throw new Error("Invalid saved region count.");
+    const version = this.loadVersion;
     const loaded: Region[] = [];
     for (const { blob, ...r } of regions) {
       const b = await createImageBitmap(blob);
+      if (version !== this.loadVersion) {
+        b.close();
+        return;
+      }
       if (b.width !== this.source.width || b.height !== this.source.height) {
         b.close();
         throw new Error("Saved region dimensions differ.");

@@ -1,0 +1,46 @@
+.workspace { container-type: inline-size; }
+.canvas-layout { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; }
+.workspace-editing .canvas-layout { flex: 0 0 auto; }
+.workspace-editing .canvas-viewport { height: min(65dvh, 650px); min-height: 300px; max-height: 650px; }
+.workspace-editing .canvas-area { flex: 0 0 auto; }
+.edit-panels { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.workspace-extending .outpaint-panel { order: -1; }
+.source-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
+.empty-state.dragging { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.source-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 12px; }
+.source-picker button { display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.source-picker img { width: 100%; height: 110px; object-fit: contain; }
+.composer .validation { font-size: 12px; padding-top: 8px; padding-bottom: 8px; overflow-wrap: anywhere; }
+.composer .validation:empty { padding: 0; }
+.negative-discovery { display: flex; flex-direction: column; align-items: start; gap: 3px; margin: 8px 0; }
+.negative-discovery:has(button[hidden]) { display: none; }
+.negative-discovery small { font-size: 10px; }
+.reference-details { grid-column: 1 / -1; }
+.reference-details summary { cursor: pointer; }
+.reference-extra { flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+.reference-extra select { flex-basis: 100%; font-size: 12px; }
+.reference-tools { flex-wrap: wrap; align-items: center; }
+.count-preset[aria-pressed="true"] { background: #465d2d; color: #e5f7ce; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+#image-history-content > p { margin-top: 7px; }
+.brush-cursor { position: absolute; z-index: 4; pointer-events: none; border: 1px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; transform: translate(-50%, -50%); }
+.canvas-panning .mask-layer { cursor: grab; }
+.canvas-stage { overflow: hidden; }
+.canvas-stage:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.canvas-panning .mask-layer:active { cursor: grabbing; }
+.editor-shortcuts { font-size: 11px; color: var(--muted); }
+.editor-shortcuts summary { cursor: pointer; }
+.editor-shortcuts p { max-width: 340px; padding: 8px 0; line-height: 1.6; }
+.mobile-navigation button[aria-current="location"] { color: var(--accent); background: #354529; border-radius: 6px; }
+@container (min-width: 760px) {
+  .workspace-editing .canvas-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; margin: 0 24px 18px; align-items: start; }
+  .workspace-editing .canvas-area { margin: 0; min-width: 0; }
+  .workspace-editing .edit-panels { display: flex; flex-direction: column; margin: 0; max-height: 650px; overflow: auto; }
+  .workspace-editing .region-panel,
+  .workspace-editing .outpaint-panel { max-height: none; overflow: visible; flex: 0 0 auto; }
+}
+@media (max-width: 600px) {
+  .negative-discovery small { font-size: 12px; }
+  .source-actions { flex-direction: column; }
+  .workspace-editing .canvas-viewport { min-height: 300px; }
+  .reference-extra select { font-size: 16px; }
+}

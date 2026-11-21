@@ -69,10 +69,10 @@ export function expansionCoverage(p: Placement, seam: number): Uint8Array {
       const inside =
         x >= p.x && x < p.x + p.width && y >= p.y && y < p.y + p.height;
       const d = Math.min(
-        x - p.x,
-        p.x + p.width - 1 - x,
-        y - p.y,
-        p.y + p.height - 1 - y,
+        p.x > 0 ? x - p.x : Infinity,
+        p.x + p.width < p.canvasWidth ? p.x + p.width - 1 - x : Infinity,
+        p.y > 0 ? y - p.y : Infinity,
+        p.y + p.height < p.canvasHeight ? p.y + p.height - 1 - y : Infinity,
       );
       a[y * p.canvasWidth + x] = !inside
         ? 255
