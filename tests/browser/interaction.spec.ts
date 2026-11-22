@@ -54,6 +54,9 @@ test("Generate and Image edit pastes remain references; existing references can 
   await page.locator("[data-mode=edit]").click();
   await paste(page);
   await expect(page.locator("#references .reference-card")).toHaveCount(2);
+  await page.locator("#match-source").click();
+  await expect(page.locator("#width")).toHaveValue("512");
+  await expect(page.locator("#height")).toHaveValue("512");
   await expect(page.locator("#canvas-viewport")).toBeHidden();
   await page.locator("#open-outpaint").click();
   await page.locator("#empty-choose").click();
@@ -86,6 +89,7 @@ test("run controls have one owner, presets reflect edits, and enabling a negativ
   await page.getByRole("button", { name: "Create 10 images", exact: true }).click();
   await expect(page.locator("#run-summary")).toContainText("4 + 4 + 2");
   await expect(page.getByRole("button", { name: "Create 10 images", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#run-options > summary").click();
   await page.locator("#series-total").fill("11");
   await expect(page.locator(".count-preset[aria-pressed=true]")).toHaveCount(0);
   await page.locator("#negative-enable").click();
@@ -96,6 +100,40 @@ test("run controls have one owner, presets reflect edits, and enabling a negativ
   await expect(page.locator("#negative-field")).toBeHidden();
   await page.locator("#negative-enable").click();
   await expect(page.locator("#negative-prompt")).toHaveValue("blurred");
+});
+
+test("prompt variants validate reference tags and submit one image per prompt with a shared seed", async ({ page }) => {
+  await page.goto("/");
+  const png = await image(page);
+  const requests: { prompt: string; seed: number; num_images: number; images: string[] }[] = [];
+  await page.route("**/api/runpod/**", route => {
+    if (route.request().url().endsWith("/run")) {
+      requests.push(route.request().postDataJSON().input);
+      return route.fulfill({ json: { id: `variant-${requests.length}`, status: "IN_QUEUE" } });
+    }
+    return route.fulfill({ json: { id: `variant-${requests.length}`, status: "COMPLETED",
+      output: { images: [{ image_base64: png, mime_type: "image/png", width: 512, height: 512, seed: 100 }] },
+    } });
+  });
+  await connect(page);
+  await addReference(page);
+  await page.locator("#width").fill("512");
+  await page.locator("#height").fill("512");
+  await page.locator("#seed").fill("100");
+  await expect(page.locator("#run-kind")).toBeHidden();
+  await page.locator("#run-options > summary").click();
+  await page.locator("#run-kind").selectOption("variants");
+  await page.locator("#prompt-variants").fill("Warm | Warm light on <image2>\nCool | Cool light on <image1>");
+  await expect(page.locator("#validation")).toContainText("<image2> has no attached reference image");
+  await expect(page.locator("#generate")).toBeDisabled();
+  await page.locator("#prompt-variants").fill("Warm | Warm light on <image1>\nCool | Cool light on <image1>");
+  await expect(page.locator("#composer-run-summary")).toContainText("2 images · 2 requests");
+  await page.locator("#generate").click();
+  await expect(page.locator("#run-progress")).toContainText("completed · 2 / 2");
+  expect(requests.map(({ prompt, seed, num_images, images }) => [prompt, seed, num_images, images.length])).toEqual([
+    ["Warm light on <image1>", 100, 1, 1],
+    ["Cool light on <image1>", 100, 1, 1],
+  ]);
 });
 
 test("Generate shortcut uses submission guards, terminal activity unsticks, and history/export stay usable", async ({ page }) => {

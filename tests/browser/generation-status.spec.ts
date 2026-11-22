@@ -137,6 +137,7 @@ test("retrying a series cancellation stops the current server job and leaves rem
     return route.fulfill({ json: { id: "activity-job", status: cancels > 1 ? "CANCELLED" : url.endsWith("/run") ? "IN_QUEUE" : "IN_PROGRESS" } });
   });
   await start(page);
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await expect(page.locator("#generate")).toBeEnabled();
   await page.locator("#generate").click();

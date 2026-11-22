@@ -98,6 +98,7 @@ let ready:
       bytes: number;
       input: Input;
       inpaint?: PreparedInpaint["snapshot"];
+      compileVariant: (value: string) => string;
     }
   | undefined;
 const preparationCache = new EditPreparationCache();
@@ -421,6 +422,11 @@ function rebind(previous: { id: string }[]) {
   guideInstruction.value = remapEditInstruction(guideInstruction.value, previousUsers, references);
   prompt.value = remapTags(prompt.value, previous, ordered());
   negative.value = remapTags(negative.value, previous, ordered());
+  const variants = $<HTMLTextAreaElement>("#prompt-variants");
+  variants.value = variants.value.replace(
+    /^([^\n|]*\|)(.*)$/gm,
+    (_, label: string, instruction: string) => label + remapTags(instruction, previous, ordered()),
+  );
   for (const region of editor.regions)
     region.instruction = remapEditInstruction(region.instruction, previousUsers, references);
   renderRegions();
@@ -497,9 +503,10 @@ function renderMode() {
   updateGenerateLabel();
 }
 function updateGenerateLabel() {
-  let label = mode === "inpaint" ? "Generate edit" : "Generate image";
+  let label = expansion() ? "Extend canvas" : mode === "generate" ? "Generate image" : "Apply edit";
   if (runControls.kind === "series") label = "Run series";
   else if (runControls.kind === "grid") label = "Run comparison";
+  else if (runControls.kind === "variants") label = "Compare prompts";
   if (working) label = "Working…";
   if (submissionGuard.pending) {
     label = "Job unresolved";
@@ -549,6 +556,7 @@ function promptUses(index: number) {
 function renderRefs() {
   const offset = mode === "inpaint" ? 2 : 0;
   $("#reference-count").textContent = `${references.length + offset} / 10`;
+  $("#match-source").hidden = mode !== "edit" || !references.length;
   renderReferences($("#references"), references, offset, {
     insert: (index) => insertAtCaret(prompt, `<image${index + offset + 1}>`),
     move: (index, delta) => {
@@ -701,6 +709,20 @@ function rawInput(): Input {
   if (input.true_cfg_scale > 1) input.negative_prompt = negative.value;
   return input;
 }
+$("#match-source").addEventListener("click", () => {
+  const source = references[0];
+  if (mode !== "edit" || !source) return;
+  const scale = Math.min(1, 4096 / source.width, 4096 / source.height,
+    Math.sqrt(4_500_000 / (source.width * source.height)));
+  const snap = (size: number) => Math.max(256, Math.round(size * scale / 32) * 32);
+  let width = snap(source.width), height = snap(source.height);
+  if (width * height > 4_500_000) {
+    if (width >= height) width = Math.floor(4_500_000 / height / 32) * 32;
+    else height = Math.floor(4_500_000 / width / 32) * 32;
+  }
+  settings.write({ ...rawInput(), width, height });
+  scheduleRefresh();
+});
 function setReusedInpaint(edit?: ReusedInpaint) {
   reusedInpaint = edit && references.length >= 2
     ? { edit, guides: [references[0].blob, references[1].blob] }
@@ -748,6 +770,7 @@ function scheduleRefresh() {
   version++;
   ready = undefined;
   $<HTMLButtonElement>("#generate").disabled = true;
+  $("#composer-run-summary").textContent = "";
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => {
     refresh().catch((error) => toast(String(error), true));
@@ -770,6 +793,8 @@ async function refresh() {
   let actualRefs = [...references],
     inpaint: PreparedInpaint["snapshot"] | undefined;
   let failure = "";
+  let instructionPrefix = "";
+  const comparingPrompts = runControls.kind === "variants";
   const savedEdit = matchingReusedInpaint(raw);
   reusedInpaintNotice.hidden = !reusedInpaint || mode !== "edit";
   if (!reusedInpaintNotice.hidden) {
@@ -815,7 +840,7 @@ async function refresh() {
       });
       actualRefs = [...value.references, ...references];
       inpaint = value.snapshot;
-      raw.prompt = `${$<HTMLTextAreaElement>("#inpaint-instruction").value}\n${regionInstructions(editor, !!expansion())}\nRequested edit: ${raw.prompt}`;
+      instructionPrefix = `${$<HTMLTextAreaElement>("#inpaint-instruction").value}\n${regionInstructions(editor, !!expansion())}\nRequested edit: `;
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
     }
@@ -827,12 +852,18 @@ async function refresh() {
     (index) => insertAtCaret(prompt, `<image${index + 1}>`),
   );
   raw.images = actualRefs.map((reference) => reference.base64);
+  const bindings = referenceBindings();
+  const compileVariant = (instruction: string) => {
+    const compiled = compilePrompt(instructionPrefix + instruction, bindings);
+    validateTags(compiled, actualRefs.length);
+    return compiled;
+  };
   try {
-    raw.prompt = compilePrompt(raw.prompt, referenceBindings());
+    raw.prompt = comparingPrompts ? "Prompt comparison" : compilePrompt(instructionPrefix + raw.prompt, bindings);
     if (raw.negative_prompt !== undefined)
       raw.negative_prompt = compilePrompt(
         raw.negative_prompt,
-        referenceBindings(),
+        bindings,
       );
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
@@ -843,22 +874,22 @@ async function refresh() {
       seed: /^-?\d+$/.test(raw.seed) ? new LosslessNumber(BigInt(raw.seed).toString()) : raw.seed,
     },
   });
-  const bytes = new TextEncoder().encode(body).length;
-  $<HTMLMeterElement>("#payload-meter").value = bytes;
-  $("#payload-value").textContent = `${(bytes / 1_000_000).toFixed(2)} / 10 MB`;
-  $("#inline-payload").textContent =
-    `${(bytes / 1_000_000).toFixed(2)} / 10 MB`;
-  $("#inline-payload").title =
-    `${bytes.toLocaleString()} serialized request bytes`;
-  $("#payload-message").textContent =
-    `${bytes.toLocaleString()} bytes · ${Math.max(0, MAX_REQUEST_BYTES - bytes).toLocaleString()} remaining. Includes guides and base64.`;
+  const showPayload = (bytes: number) => {
+    $<HTMLMeterElement>("#payload-meter").value = bytes;
+    $("#payload-value").textContent = `${(bytes / 1_000_000).toFixed(2)} / 10 MB`;
+    $("#inline-payload").textContent = $("#payload-value").textContent;
+    $("#inline-payload").title = `${bytes.toLocaleString()} serialized request bytes`;
+    $("#payload-message").textContent =
+      `${bytes.toLocaleString()} bytes · ${Math.max(0, MAX_REQUEST_BYTES - bytes).toLocaleString()} remaining. Includes guides and base64.`;
+  };
+  showPayload(new TextEncoder().encode(body).length);
   try {
     const preview = normalizeInput({
       ...raw,
       prompt: raw.prompt.trim() ? raw.prompt : "Preview",
     });
     renderEstimates(preview, actualRefs, profile, settings.separateJobs());
-    runControls.describe(preview, raw.negative_prompt || "", settings.separateJobs());
+    runControls.describe(preview, raw.negative_prompt || "", settings.separateJobs(), compileVariant);
   } catch {
     $("#memory-estimate").textContent =
       "Complete valid generation settings to estimate memory.";
@@ -868,7 +899,7 @@ async function refresh() {
     if (mode === "edit" && !references.length)
       throw new Error("Add at least one reference for image editing.");
     if (
-      !prompt.value.trim() &&
+      !comparingPrompts && !prompt.value.trim() &&
       !(
         mode === "inpaint" &&
         (expansion() ||
@@ -883,15 +914,17 @@ async function refresh() {
     validateReferences(actualRefs);
     validateTags(raw.prompt, actualRefs.length);
     if (raw.true_cfg_scale > 1) validateTags(negative.value, actualRefs.length);
-    ready = { ...prepare(raw), inpaint };
+    ready = { ...prepare(raw), inpaint, compileVariant };
     const runPlan = runControls.describe(
       ready.input,
       runControls.kind === "grid" || raw.true_cfg_scale > 1
         ? compilePrompt(negative.value, referenceBindings())
         : "",
       settings.separateJobs(),
+      compileVariant,
     );
     if (runPlan) {
+      if (comparingPrompts) showPayload(Math.max(...runPlan.requests.map(request => request.bytes)));
       const summary = estimatePlan(runPlan, actualRefs, profile);
       renderEstimates(summary.worst.input, actualRefs, profile, false);
       $("#memory-estimate").prepend(
@@ -1107,11 +1140,11 @@ bindGPUConfig({
 });
 bindEstimatorControls(scheduleRefresh);
 
-function submissionPlan(input: Input) {
+function submissionPlan(input: Input, compileVariant: (value: string) => string) {
   const negativePrompt = runControls.kind === "grid"
     ? compilePrompt(negative.value, referenceBindings())
     : "";
-  return runControls.plan(input, negativePrompt) ??
+  return runControls.plan(input, negativePrompt, compileVariant) ??
     (settings.separateJobs() && input.num_images > 1
       ? planSeries(input, input.num_images, 1)
       : undefined);
@@ -1131,7 +1164,7 @@ $("#generate").addEventListener("click", async () => {
   working = true;
   $<HTMLButtonElement>("#generate").disabled = true;
   try {
-    const plan = submissionPlan(frozen.input);
+    const plan = submissionPlan(frozen.input, frozen.compileVariant);
     if (plan) {
       runRenderKey = "";
       const identity = ++runId;
@@ -1332,7 +1365,7 @@ $("#export-request").addEventListener("click", async () => {
     toast("Complete a valid request before exporting.", true);
     return;
   }
-  const plan = submissionPlan(ready.input);
+  const plan = submissionPlan(ready.input, ready.compileVariant);
   const save = (body: string, filename: string) =>
     download(new Blob([body], { type: "application/json" }), filename);
   if (!plan || plan.requests.length === 1) {
@@ -1355,7 +1388,7 @@ $("#request-preview").addEventListener("click", async () => {
   }
   const request = ready;
   const random = request.input.seed === "-1";
-  const plan = submissionPlan(random ? { ...request.input, seed: "0" } : request.input);
+  const plan = submissionPlan(random ? { ...request.input, seed: "0" } : request.input, request.compileVariant);
   const body = dialog("API request preview");
   const notice = node("p", "notice");
   const text = node("pre", "json-preview");

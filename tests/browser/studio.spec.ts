@@ -390,6 +390,7 @@ test("separate output jobs submit explicit consecutive seeds with integer wrap",
   await page.locator("#width").fill("512");
   await page.locator("#height").fill("512");
   await page.locator("#seed").fill("9223372036854775807");
+  await page.locator("#run-options > summary").click();
   await page.locator("#image-count").selectOption("3");
   await page.locator("#separate-jobs").check();
   await expect(page.locator("#generate")).toBeEnabled();

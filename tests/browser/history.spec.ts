@@ -112,6 +112,7 @@ test("partial JPEG batches keep every received image, show omissions and never r
     } } });
   });
   await page.locator("#seed").fill("42");
+  await page.locator("#run-options > summary").click();
   await page.locator("#image-count").selectOption("4");
   await expect(page.locator("#generate")).toBeEnabled();
   await page.locator("#generate").click();

@@ -94,6 +94,7 @@ test("a series preview shows each batch and importing one image resets the plann
   });
   await page.locator("#prompt").fill("A preview");
   await page.locator("#seed").fill("41");
+  await page.locator("#run-options > summary").click();
   await page.locator("#separate-jobs").check();
   await page.locator("#run-kind").selectOption("series");
   await page.locator("#series-total").fill("8");
@@ -156,6 +157,7 @@ test("a corrupt image does not discard later valid images in the same response",
   await expect(page.locator("#storage-mode-note")).toContainText("Saved in this browser");
   await page.locator("#prompt").fill("Three images");
   await page.locator("#seed").fill("41");
+  await page.locator("#run-options > summary").click();
   await page.locator("#image-count").selectOption("3");
   await page.locator("#generate").click();
   await expect(page.locator(".result-seed")).toHaveText(["Seed 41", "Seed 43"]);
@@ -369,6 +371,7 @@ test("one-cell comparison export matches preview and the outgoing frozen request
   });
   await page.locator("#prompt").fill("An elm");
   await page.locator("#seed").fill("41");
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("grid");
   await page.locator("#grid-x").selectOption("seed");
   await page.locator("#grid-x-values").fill("123");
@@ -387,6 +390,7 @@ test("one-cell comparison export matches preview and the outgoing frozen request
 test("a multi-request JSON export downloads each prepared batch independently", async ({ page }) => {
   await page.locator("#prompt").fill("A five-image series");
   await page.locator("#seed").fill("41");
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await page.locator("#series-total").fill("5");
   await page.locator("#export-request").click();
@@ -447,6 +451,7 @@ test("a leading zero is normalized and the first click after editing the series 
   });
   await page.locator("#prompt").fill("An elm");
   await page.locator("#seed").fill("0041");
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await page.locator("#series-total").fill("2");
   await expect(page.locator("#generate")).toBeEnabled();
@@ -526,6 +531,7 @@ test("recovering an unrelated job replaces the displayed series and exports only
   await runReturnedImage(page, (await pngFile(page, "orange.png", "orange", 256)).buffer.toString("base64"), 256);
   await page.locator("#prompt").fill("A series");
   await page.locator("#seed").fill("41");
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await page.locator("#series-total").fill("2");
   await expect(page.locator("#generate")).toBeEnabled();

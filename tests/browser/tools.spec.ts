@@ -284,6 +284,7 @@ test("20-image series supports both 4 and 1 outputs per request and retains the 
   const requests = await mocked(page, png);
   await connect(page);
   await basic(page);
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await expect(page.locator("#run-summary")).toContainText("20 images · 5");
   await expect(page.locator("#generate")).toBeEnabled();
@@ -327,6 +328,7 @@ test("parameter grid labels nine fixed-seed results and submits distinct legal r
   const requests = await mocked(page, png);
   await connect(page);
   await basic(page);
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("grid");
   await expect(page.locator("#run-summary")).toContainText("9 images · 9");
   await expect(page.locator("#generate")).toBeEnabled();
@@ -393,6 +395,7 @@ test("stop after current prevents the next remote submission", async ({
   });
   await connect(page);
   await basic(page);
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("series");
   await expect(page.locator("#generate")).toBeEnabled();
   await page.locator("#generate").click();

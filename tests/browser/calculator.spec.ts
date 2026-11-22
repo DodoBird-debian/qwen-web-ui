@@ -23,6 +23,7 @@ test("configured offload is editable and overrides persist per endpoint", async 
   await expect(page.locator("#gpu-inline-capacity")).toHaveValue("24");
   await expect(page.locator("#safety-adder")).toHaveValue("2");
   await expect(page.locator(".vram-breakdown")).toContainText("30.21 GiB weights");
+  await page.locator(".technical-details > summary").click();
   await page.locator("#gpu-inline-offload").selectOption("model");
   await expect(page.locator(".vram-breakdown")).toContainText("16.96 GiB weights");
   await page.locator("#profile-open").click();
@@ -40,6 +41,7 @@ test("configured offload is editable and overrides persist per endpoint", async 
   await page.locator("#endpoint-id").fill("another-worker");
   await page.locator("#api-key").fill("fixture-key");
   await page.locator("#connection-form button[type=submit]").click();
+  await page.locator(".technical-details > summary").click();
   await page.locator("#gpu-inline-offload").selectOption("none");
   await expect(page.locator(".vram-breakdown")).toContainText("30.21 GiB weights");
   await page.locator("#connection-open").click();
@@ -61,6 +63,7 @@ test("GPU capacity and whole-GiB flat safety update both bars and persist withou
   await expect(page.locator("#safety-adder")).toHaveAttribute("min", "0");
   await expect(page.locator("#safety-adder")).toHaveAttribute("max", "10");
   await expect(page.locator("#safety-adder")).toHaveAttribute("step", "1");
+  await page.locator(".technical-details > summary").click();
   await page.locator("#gpu-inline-capacity").fill("24");
   await page.locator("#gpu-inline-offload").selectOption("model");
   await slide(page, "#safety-adder", 10);
@@ -115,6 +118,7 @@ test("four-image preview is independent of submission and reports transport fit 
     "data-route",
     "single",
   );
+  await page.locator("#run-options > summary").click();
   await page.locator("#image-count").selectOption("4");
   await expect(page.locator(".actual-route")).toHaveAttribute(
     "data-route",
@@ -124,6 +128,7 @@ test("four-image preview is independent of submission and reports transport fit 
   await page.locator("#format").selectOption("jpeg");
   await expect(page.locator("#output-budget")).toContainText("Compressed output size varies");
   await expect(page.locator(".actual-route")).toHaveAttribute("data-route", "parallel");
+  await page.locator(".technical-details > summary").click();
   await page.locator("#batch-preview-count").selectOption("2");
   await expect(page.locator(".vram-comparison.parallel")).toContainText(
     "2× physical batch",

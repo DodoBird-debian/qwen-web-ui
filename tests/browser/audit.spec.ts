@@ -127,6 +127,7 @@ test("series updates keep previous image nodes and URLs instead of decoding them
   await page.locator("#width").fill("512");
   await page.locator("#height").fill("512");
   await page.locator("#seed").fill("100");
+  await page.locator("#run-options > summary").click();
   await page.locator("#image-count").selectOption("2");
   await page.locator("#separate-jobs").check();
   await expect(page.locator("#generate")).toBeEnabled();

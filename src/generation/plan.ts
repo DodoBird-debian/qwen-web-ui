@@ -210,3 +210,37 @@ export function planGrid(
     columns: xs.map((v) => `${x} ${v}`),
   };
 }
+
+/** Compare instructions with a shared seed and a single image per request. */
+export function planPromptVariants(
+  input: Input,
+  text: string,
+  compile: (value: string) => string,
+): GenerationPlan {
+  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  if (lines.length < 2 || lines.length > 64)
+    throw new Error("Enter 2–64 prompt variants, one per line.");
+  const baseSeed = explicitSeed(input.seed);
+  const size = requestSizer(input.images);
+  const names = new Set<string>();
+  const cells = lines.map((line, column) => {
+    const divider = line.indexOf("|");
+    const name = line.slice(0, divider).trim();
+    const instruction = line.slice(divider + 1).trim();
+    if (divider < 0 || !name || name.length > 80 || !instruction || names.has(name))
+      throw new Error("Use a unique name (up to 80 characters) and a prompt on each line, separated by |.");
+    names.add(name);
+    return {
+      id: `variant-${column}`,
+      label: name,
+      row: 0,
+      column,
+      input: normalizeInput({ ...input, prompt: compile(instruction), seed: baseSeed, num_images: 1 }),
+    };
+  });
+  return {
+    schemaVersion: 1, kind: "grid", baseSeed, cells, rows: [],
+    columns: cells.map(cell => cell.label),
+    requests: cells.map((cell, index) => requestFor([cell], index, size)),
+  };
+}

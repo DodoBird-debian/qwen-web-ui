@@ -24,6 +24,7 @@ test("model switching locks only Turbo, preserves base steps, imports and grid c
   await expect(page.locator("#connection-label")).toHaveText("turbo-node");
   await expect(page.locator("#steps")).toHaveValue("8");
   await expect(page.locator("#steps")).not.toBeEditable();
+  await page.locator("#run-options > summary").click();
   await page.locator("#run-kind").selectOption("grid");
   await expect(page.locator("#grid-x")).toHaveValue("seed");
   await expect(page.locator('#grid-x option[value="steps"]')).toHaveAttribute("disabled", "");
