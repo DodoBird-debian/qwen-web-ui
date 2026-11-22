@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ROOT_FILES = (
     'package.json', 'package-lock.json', 'index.html', 'tsconfig.json',
     'vite.config.ts', 'vitest.config.ts', 'playwright.config.ts',
-    'README.md', 'CHANGELOG.md', 'PLAN.md', 'Dockerfile', 'compose.yaml',
+    'README.md', 'CHANGELOG.md', 'Dockerfile', 'compose.yaml',
     '.gitignore', '.dockerignore', 'deploy.sh',
 )
 SOURCE_DIRS = ('src', 'public', 'nginx', 'deploy/lxc', 'tests', 'docs')

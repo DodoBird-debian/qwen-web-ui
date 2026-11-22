@@ -356,6 +356,6 @@ export requests and masks, and keep source files separately. Storage-full errors
 leave results available for immediate download. Keys are excluded from storage,
 project data, exported requests and application logs.
 
-See [the implementation plan](PLAN.md) for the original architecture and scope.
+The browser owns editing, project state and run planning. The Nginx deployment serves the static site and proxies the existing RunPod queue API. A background job queue, dedicated sketch editor, user-managed preset library, portable project bundles, shared storage and a global clear-state workflow remain deferred. [Original architecture plan](https://github.com/DodoBird-debian/qwen-web-ui/blob/a331cf51388069b7929faa30ac56231c74619d31/PLAN.md) · [Browser editing plan](https://github.com/DodoBird-debian/qwen-web-ui/blob/a331cf51388069b7929faa30ac56231c74619d31/docs/NEXT-IMPLEMENTATION-PLAN.md)
 
-The 1.2.1 resource/compute and mobile audit is documented in [docs/WEBUI-AUDIT.md](docs/WEBUI-AUDIT.md).
+See [verification and regression coverage](docs/VERIFICATION.md) and the [inference and delivery investigations](docs/inference-and-delivery.md).
